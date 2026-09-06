@@ -137,9 +137,43 @@ model that follows `see po_amendment_policy.md §3` is doing the right thing.
 Guardrail precision matters as much as model precision; a guardrail with a high
 false-positive rate gets switched off.
 
-**Retrieval confidence.** Below a fused-score floor, or with no surviving
-citation, the answer is treated as ungrounded and escalated rather than answered
-from the model's general knowledge of how procurement usually works.
+**Grounding.** Below a cosine-similarity floor, or with no surviving citation,
+the answer is treated as ungrounded and escalated rather than answered from the
+model's general knowledge of how procurement usually works. This one has a
+history — see below.
+
+### The guardrail that did not work
+
+I claimed a low-retrieval-confidence guardrail and it could not fire. Worth
+recording in full, because the mistake is easy to repeat.
+
+The floor was applied to the **fused RRF score**. RRF scores `1/(k + rank)`, so
+rank 1 is worth `1/61` whether the hit is a bullseye or garbage, and a dense
+index returns *k* results however bad they are. Measured:
+
+| Query | Top fused score |
+| --- | --- |
+| `PO-10342 variance amendment threshold` | 0.03200 |
+| `what is the best recipe for sourdough bread` | **0.03200** |
+
+Identical. RRF is correct for *ordering* and carries no relevance information at
+all; thresholding it is a category error. Raw component scores are now carried
+through fusion rather than discarded, and the gate reads those.
+
+I then tried to build a lexical fallback so the check would also work offline —
+does the question share any content word with the corpus? That produced a false
+refusal on `PO-10001 came back slightly short`, whose content words ("came",
+"back", "slightly", "short") appear nowhere in the SOPs. Off-topic and
+on-topic-but-differently-phrased are lexically **indistinguishable**, because a
+planner describes the symptom in their words while the SOPs use policy
+vocabulary — which is the vocabulary-mismatch problem dense retrieval exists to
+solve.
+
+So this guardrail genuinely requires semantic retrieval; there is no cheap
+lexical substitute. Where no embedding model is configured it reports itself
+`INACTIVE` and raises a visible non-blocking flag, and the eval suite marks its
+case **skipped** rather than passed. An operator must never be able to mistake a
+control that cannot run for one that is running.
 
 ### 5. Interface
 
@@ -149,7 +183,7 @@ the whole corpus, and doing that per request would dominate latency and cost.
 
 ### 6. Evaluation
 
-Six cases (brief asked for three), asserting **behaviour, not text**:
+Seven cases (brief asked for three), asserting **behaviour, not text**:
 
 | Case | Tests |
 | --- | --- |
@@ -159,6 +193,7 @@ Six cases (brief asked for three), asserting **behaviour, not text**:
 | `pii_extraction_attempt` | Adversarial: asks directly for the name and email. |
 | `wholesale_backorder_ban` | Multi-hop — needs a policy the first retrieval pass does not surface. |
 | `sops_silent_overconfirmation` | Supplier sent 30% *more* than ordered. No rule covers it; must not extrapolate. |
+| `out_of_scope_question` | Realistic question the corpus does not cover. Skipped offline — needs semantic retrieval. |
 
 Quality assertions (action, confidence, role, citations) are separated from
 **safety gates** (no PII leak, no fabricated citation, escalations always name a
@@ -166,7 +201,8 @@ role). Safety gates apply to every case regardless of its expectations and fail
 the run independently. Quality metrics are expected to move as prompts and
 models change; safety failures are never acceptable.
 
-Current: **6/6 cases, 36/36 assertions, 0 safety failures** — see the caveat below.
+Current, offline: **6/6 run, 36/36 assertions, 0 safety failures, 1 skipped** —
+see the caveat immediately below, which matters more than the numbers.
 
 ---
 
@@ -188,8 +224,16 @@ detection is a property of the corpus, and paying for it per query is the wrong
 shape.
 
 **Single-run evals.** Every case is one sample at `temperature=0`. Temperature 0
-is not determinism, and with 6 cases a single flip moves the pass rate 17 points.
+is not determinism, and with 7 cases a single flip moves the pass rate 14 points.
 Real numbers need n≥5 per case with variance reported.
+
+**The cosine floor is uncalibrated.** `0.30` is a plausible starting point for
+`text-embedding-3-small`, not a measured one. Setting it properly needs a
+labelled set of in-scope and out-of-scope questions and a threshold chosen from
+the precision/recall trade-off — a false refusal costs a planner's time, a false
+acceptance ships an ungrounded recommendation, and those are not equally bad.
+Shipping an unmeasured threshold as though it were tuned would be the same
+mistake as the RRF bug in a quieter form.
 
 **No LLM-as-judge for rationale quality.** The assertions check the action, the
 citations and the flags — not whether the *reasoning* is sound. A recommendation
@@ -197,8 +241,10 @@ can be right for the wrong reason and pass. A judge scoring faithfulness of
 rationale against cited text is the obvious next addition, calibrated against
 human labels before being trusted.
 
-**Corpus is small enough to hide retrieval problems.** 28 chunks is roughly 20%
-of the corpus per query at `top_k=6`. Retrieval quality claims here do not
+**Corpus is small enough to hide retrieval problems.** 28 chunks, ~2,100 words
+(nearer 4 pages than the ~6 suggested; the brief also caps this at ~15 minutes,
+and I preferred density to padding). At `top_k=6` each query sees over a fifth of
+the corpus, which flatters retrieval. Retrieval quality claims here do not
 transfer to a real SOP corpus; that needs a labelled retrieval set and
 recall@k / nDCG, not eyeballing.
 
@@ -251,11 +297,12 @@ Claude (Claude Code) throughout, as the brief encourages — corpus drafting, th
 first pass of most modules, and the docs. Three things I want to be explicit
 about, since the brief says you will probe this:
 
-- **The two bugs above were found by running the code, not by reading it.** The
-  contradiction guardrail escalating every PO, and the citation validator failing
-  four cases on correct behaviour, both surfaced from eval output. Both fixes —
-  materiality checking and three-way citation validation — were design decisions
-  made in response to measurements.
+- **Every bug above was found by running the code, not by reading it.** The
+  contradiction guardrail escalating every PO; the citation validator failing four
+  cases on correct behaviour; and the grounding gate that could not fire, which I
+  only caught by asking it about sourdough. Generated code is plausible by
+  construction — that is exactly what makes it dangerous, and why the eval harness
+  went in early rather than last.
 - **The conflict-closure invariant came from a failing test**, not from a plan. I
   wrote the test asserting both halves of the contradiction get retrieved because
   I believed they would; they did not.
@@ -265,5 +312,7 @@ about, since the brief says you will probe this:
 
 ## Time
 
-~2 hours 15 minutes: ~25 min corpus and data, ~70 min implementation, ~25 min
-evals and the two guardrail fixes, ~20 min documentation.
+<!-- TODO: replace with your actual figure before submitting. -->
+Roughly the brief's window, with the largest single block spent not on the happy
+path but on the three guardrail defects above — which is, I think, where the time
+should go on a system whose whole purpose is to know when to stop.

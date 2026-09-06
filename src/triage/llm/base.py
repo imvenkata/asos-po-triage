@@ -37,6 +37,10 @@ class LLMError(RuntimeError):
 @runtime_checkable
 class LLMClient(Protocol):
     name: str
+    # False for test doubles whose "embeddings" are a hashing trick. The
+    # grounding guardrail refuses to report a semantic similarity it cannot
+    # actually measure, rather than emitting a number that always passes.
+    provides_semantic_embeddings: bool
 
     def chat(
         self,

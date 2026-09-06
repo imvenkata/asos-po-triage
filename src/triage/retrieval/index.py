@@ -75,6 +75,16 @@ class SopIndex:
         return graph
 
     @property
+    def semantic_scores_meaningful(self) -> bool:
+        """True only when a real embedding model built the dense index."""
+        return self._dense is not None and bool(
+            getattr(self._llm, "provides_semantic_embeddings", False)
+        )
+
+    def informative_overlap(self, query: str) -> tuple[int, int]:
+        return self._bm25.informative_overlap(query)
+
+    @property
     def conflict_partners(self) -> dict[str, set[str]]:
         return self._conflict_partners
 
@@ -103,6 +113,8 @@ class SopIndex:
                 score=h.score,
                 lexical_rank=h.lexical_rank,
                 dense_rank=h.dense_rank,
+                lexical_score=h.lexical_score,
+                dense_score=h.dense_score,
             )
             for h in fused
         ]

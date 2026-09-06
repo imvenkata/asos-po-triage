@@ -45,6 +45,7 @@ class ScriptedLLMClient:
     """Walks a fixed plan: look up the PO, retrieve policy, then recommend."""
 
     name = "scripted:offline-double"
+    provides_semantic_embeddings = False
 
     def __init__(self) -> None:
         self._counter = 0

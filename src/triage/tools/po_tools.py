@@ -15,7 +15,7 @@ from ..data_access import PoRepository
 from ..models import PurchaseOrder
 
 
-def _variance(po: PurchaseOrder) -> dict[str, Any]:
+def compute_variance(po: PurchaseOrder) -> dict[str, Any]:
     qty_var = (
         (po.ordered_qty - po.confirmed_qty) / po.ordered_qty * 100 if po.ordered_qty else 0.0
     )
@@ -48,7 +48,7 @@ def get_po(repo: PoRepository, po_id: str) -> dict[str, Any]:
             "known_po_ids_sample": repo.po_ids[:5],
         }
     payload = po.model_dump(mode="json")
-    payload["computed_variance"] = _variance(po)
+    payload["computed_variance"] = compute_variance(po)
     children = repo.children_of(po.po_id)
     payload["child_po_ids"] = [c.po_id for c in children]
     payload["child_po_count"] = len(children)

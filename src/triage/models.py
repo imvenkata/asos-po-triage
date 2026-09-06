@@ -100,10 +100,17 @@ class Chunk(BaseModel):
 
 
 class RetrievedChunk(BaseModel):
+    """`score` is the fused RRF score - use it to ORDER results, never to judge
+    relevance. RRF is a function of rank, so it says nothing about how good the
+    match is. `dense_score` (cosine) and `lexical_score` (BM25) are the raw
+    signals that do carry relevance information."""
+
     chunk: Chunk
     score: float
     lexical_rank: int | None = None
     dense_rank: int | None = None
+    lexical_score: float | None = None
+    dense_score: float | None = None
 
 
 # --- Guardrail + envelope -------------------------------------------------
@@ -136,7 +143,12 @@ class TriageResult(BaseModel):
     # Citations matching no section in the corpus. Invented, and dropped.
     dropped_citations: list[str] = Field(default_factory=list)
     tool_calls: list[ToolInvocation] = Field(default_factory=list)
-    retrieval_confidence: float = 0.0
+    # Fused RRF score of the best hit. Ordering diagnostic only - NOT a
+    # relevance measure (RRF is rank-based). Kept for debugging retrieval order.
+    top_fused_score: float = 0.0
+    # Max cosine similarity, or None where no semantic embedding model was used.
+    semantic_similarity: float | None = None
+    grounding_reason: str = ""
     steps_used: int = 0
     provider: str = "unknown"
     usage: dict[str, int] = Field(default_factory=dict)

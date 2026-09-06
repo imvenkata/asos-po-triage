@@ -22,7 +22,7 @@ from pydantic import ValidationError
 from .config import Settings, get_settings
 from .data_access import PoRepository, get_repository
 from .guardrails.contradiction import detect_all_conflicts, detect_threshold_conflicts
-from .guardrails.grounding import assess_retrieval_confidence, validate_citations
+from .guardrails.grounding import assess_grounding, validate_citations
 from .guardrails.pii import redact, scan_for_pii
 from .llm.base import LLMClient, LLMError
 from .logging_setup import get_logger
@@ -36,7 +36,7 @@ from .models import (
 )
 from .prompts import SYSTEM_PROMPT, format_conflict_block, format_context_block
 from .retrieval.index import SopIndex, build_index
-from .tools.po_tools import _variance
+from .tools.po_tools import compute_variance
 from .tools.registry import ToolRegistry, build_tool_registry
 
 log = get_logger("agent")
@@ -56,6 +56,11 @@ class TriageAgent:
         self._index = index
         self._repo = repo
         self._settings = settings or get_settings()
+
+    @property
+    def semantic_retrieval_available(self) -> bool:
+        """Whether the grounding guardrail can actually run in this configuration."""
+        return self._index.semantic_scores_meaningful
 
     @property
     def pii_registry(self):
@@ -88,7 +93,7 @@ class TriageAgent:
         if po is None:
             return None
         return {
-            k: v for k, v in _variance(po).items() if isinstance(v, (int, float))
+            k: v for k, v in compute_variance(po).items() if isinstance(v, (int, float))
         }
 
     # -- loop --------------------------------------------------------------
@@ -282,21 +287,34 @@ class TriageAgent:
             )
         rec.citations = verdict.kept
 
-        # 2. Retrieval confidence - refuse to answer from thin air.
-        score, grounded = assess_retrieval_confidence(
-            registry.retrieved, self._settings.triage_min_retrieval_score
+        # 2. Grounding - refuse to answer from thin air.
+        matched, total = self._index.informative_overlap(question)
+        grounding = assess_grounding(
+            registry.retrieved,
+            matched,
+            total,
+            self._index.semantic_scores_meaningful,
+            self._settings.triage_min_semantic_similarity,
         )
-        if not grounded:
+        if not grounding.grounded:
             flags.append(
                 GuardrailFlag(
                     name="low_retrieval_confidence",
-                    detail=f"Top fused retrieval score {score:.5f} is below the floor "
-                    f"{self._settings.triage_min_retrieval_score}. The corpus does not "
-                    "appear to cover this question.",
+                    detail=f"The SOP corpus does not appear to cover this question: "
+                    f"{grounding.as_detail()}",
                     blocking=True,
                 )
             )
-        elif not rec.citations:
+        elif not grounding.active:
+            # Visible, not silent: the operator must know a control is switched off.
+            flags.append(
+                GuardrailFlag(
+                    name="grounding_check_inactive",
+                    detail=grounding.as_detail(),
+                    blocking=False,
+                )
+            )
+        if grounding.grounded and not rec.citations:
             flags.append(
                 GuardrailFlag(
                     name="uncited_recommendation",
@@ -373,7 +391,9 @@ class TriageAgent:
             resolved_citations=verdict.resolved,
             dropped_citations=verdict.fabricated,
             tool_calls=tool_log,
-            retrieval_confidence=round(score, 5),
+            top_fused_score=round(max((r.score for r in registry.retrieved), default=0.0), 5),
+            semantic_similarity=grounding.semantic_similarity,
+            grounding_reason=grounding.reason,
             steps_used=steps,
             provider=getattr(self._llm, "name", "unknown"),
             usage=usage,

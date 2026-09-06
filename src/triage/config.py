@@ -41,10 +41,12 @@ class Settings(BaseSettings):
 
     # --- retrieval --------------------------------------------------------
     triage_retrieval_top_k: int = 6
-    # Fused RRF scores are small by construction (1/(60+rank) summed over two
-    # rankers), so this floor is calibrated against that scale, not cosine.
-    triage_min_retrieval_score: float = 0.012
     triage_rrf_k: int = 60
+    # Minimum cosine similarity for the best retrieved chunk. Applies ONLY where
+    # a real embedding model produced the vectors. UNCALIBRATED: a plausible
+    # starting point for text-embedding-3-small, to be set from a labelled
+    # retrieval set rather than by intuition. See WRITEUP.md.
+    triage_min_semantic_similarity: float = 0.30
 
     # --- agent ------------------------------------------------------------
     triage_max_agent_steps: int = 6
@@ -55,11 +57,20 @@ class Settings(BaseSettings):
 
     @property
     def embeddings_available(self) -> bool:
+        """Whether SOME embedder will be available - including the scripted
+        double's non-semantic one. Use `semantic_retrieval_configured` when the
+        question is whether embeddings actually carry meaning."""
         if self.triage_llm_provider == "azure":
             return bool(self.azure_openai_embedding_deployment and self.azure_openai_api_key)
         if self.triage_llm_provider == "openai":
             return bool(self.openai_api_key)
-        return True  # scripted provider has a deterministic local embedder
+        return True  # deterministic local embedder, not a semantic model
+
+    @property
+    def semantic_retrieval_configured(self) -> bool:
+        return (
+            self.triage_llm_provider in ("azure", "openai") and self.embeddings_available
+        )
 
 
 @lru_cache(maxsize=1)

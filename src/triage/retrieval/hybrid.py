@@ -16,6 +16,12 @@ class FusedHit:
     score: float
     lexical_rank: int | None = None
     dense_rank: int | None = None
+    # Raw component scores are carried through fusion, not discarded. RRF is
+    # correct for ORDERING and useless for measuring relevance - 1/(k+rank) gives
+    # rank 1 the same value whether the hit is a bullseye or garbage - so the
+    # grounding check has to read the underlying signals instead.
+    lexical_score: float | None = None
+    dense_score: float | None = None
 
 
 def reciprocal_rank_fusion(
@@ -26,15 +32,17 @@ def reciprocal_rank_fusion(
 ) -> list[FusedHit]:
     hits: dict[int, FusedHit] = {}
 
-    for rank, (idx, _score) in enumerate(lexical, start=1):
+    for rank, (idx, score) in enumerate(lexical, start=1):
         hit = hits.setdefault(idx, FusedHit(index=idx, score=0.0))
         hit.score += 1.0 / (k + rank)
         hit.lexical_rank = rank
+        hit.lexical_score = score
 
-    for rank, (idx, _score) in enumerate(dense, start=1):
+    for rank, (idx, score) in enumerate(dense, start=1):
         hit = hits.setdefault(idx, FusedHit(index=idx, score=0.0))
         hit.score += 1.0 / (k + rank)
         hit.dense_rank = rank
+        hit.dense_score = score
 
     ordered = sorted(hits.values(), key=lambda h: (-h.score, h.index))
     return ordered[:top_k]

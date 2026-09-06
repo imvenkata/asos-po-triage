@@ -55,7 +55,8 @@ def render(result: TriageResult, show_trace: bool = False) -> None:
 
     console.print(
         f"[dim]provider={result.provider}  steps={result.steps_used}  "
-        f"retrieval_confidence={result.retrieval_confidence}  "
+        f"grounding={result.grounding_reason}  "
+        f"cosine={result.semantic_similarity if result.semantic_similarity is not None else 'n/a'}  "
         f"tokens={result.usage.get('total_tokens', 0)}[/]"
     )
 
@@ -142,7 +143,11 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     table.add_row("provider", settings.triage_llm_provider)
     table.add_row("corpus_dir", str(settings.corpus_dir))
     table.add_row("data_dir", str(settings.data_dir))
-    table.add_row("embeddings configured", "yes" if settings.embeddings_available else "no")
+    table.add_row(
+        "semantic retrieval",
+        "yes" if settings.semantic_retrieval_configured
+        else "[yellow]NO — grounding guardrail will be INACTIVE[/]",
+    )
     if settings.triage_llm_provider == "azure":
         table.add_row("azure endpoint", settings.azure_openai_endpoint or "[red]unset[/]")
         table.add_row("azure api key", "set" if settings.azure_openai_api_key else "[red]unset[/]")

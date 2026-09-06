@@ -41,6 +41,10 @@ about how procurement usually works.
 - Cite by copying the `citation` string from the search results exactly, e.g. \
 "po_amendment_policy.md §3". Citations that were not returned to you are \
 discarded downstream and count as a defect.
+- Put the citation inline in your rationale, in square brackets, at the point it \
+supports the claim - "...sits at 12%, above the 10% ceiling \
+[po_amendment_policy.md §4]..." - AND list the same citations in the `citations` \
+array. A reader must be able to see which source backs which sentence.
 - If the SOPs do not cover the situation, say so plainly and escalate. Do not \
 reason by analogy from a neighbouring rule. An honest "the policy is silent on \
 this" is a correct answer; an invented threshold is not.

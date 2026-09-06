@@ -13,6 +13,8 @@ log = get_logger("llm.openai")
 
 
 class OpenAICompatibleClient:
+    provides_semantic_embeddings = True
+
     def __init__(self, settings: Settings) -> None:
         try:
             from openai import AzureOpenAI, OpenAI

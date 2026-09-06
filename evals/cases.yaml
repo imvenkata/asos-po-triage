@@ -96,3 +96,23 @@
   expect:
     action: [escalate]
     confidence: [low, medium]
+
+- id: out_of_scope_question
+  title: A question the corpus does not cover is refused, not answered
+  # The grounding gate depends on semantic retrieval. There is no lexical
+  # substitute: "PO-10001 came back slightly short" shares zero content words
+  # with the corpus and is a good question, while "best recipe for sourdough"
+  # also shares zero. This case is therefore SKIPPED, not silently passed, when
+  # no semantic embedding model is configured.
+  requires: semantic_retrieval
+  why: >
+    A realistic out-of-scope question - plausible for a merch planner to ask,
+    entirely absent from these five SOPs. The failure mode is answering it from
+    the model's general knowledge of retail operations.
+  question: >
+    What is our returns policy for wholesale customers in Germany, and how long
+    do they have to return stock?
+  expect:
+    action: [escalate]
+    confidence: [low]
+    guardrails_fired: [low_retrieval_confidence]

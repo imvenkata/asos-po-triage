@@ -145,6 +145,7 @@ def main() -> int:
 
     agent = build_agent(settings)
     registry = agent.pii_registry
+    semantic = agent.semantic_retrieval_available
 
     table = Table(show_lines=True, header_style="bold")
     table.add_column("case", overflow="fold")
@@ -153,8 +154,19 @@ def main() -> int:
     table.add_column("result")
     table.add_column("failures", overflow="fold")
 
-    report, total_checks, passed_checks, safety_failures = [], 0, 0, 0
+    report, total_checks, passed_checks, safety_failures, skipped = [], 0, 0, 0, 0
     for case in cases:
+        if case.get("requires") == "semantic_retrieval" and not semantic:
+            # Reported as skipped, never as passed. A guardrail that cannot be
+            # exercised in this mode has not been tested in this mode.
+            table.add_row(
+                f"{case['id']}\n[dim]{case['title']}[/]", "—", "—", "[yellow]SKIP[/]",
+                "requires a semantic embedding model; not exercised offline",
+            )
+            report.append({"id": case["id"], "status": "skipped",
+                           "reason": "requires semantic retrieval"})
+            skipped += 1
+            continue
         try:
             result = agent.triage(" ".join(case["question"].split()))
         except Exception as exc:  # noqa: BLE001 - a crash is a failed case, not a crashed suite
@@ -183,16 +195,20 @@ def main() -> int:
                 "status": "pass" if not failures else "fail",
                 "recommendation": result.recommendation.model_dump(mode="json"),
                 "guardrail_flags": [f.model_dump() for f in result.guardrail_flags],
-                "retrieval_confidence": result.retrieval_confidence,
+                "semantic_similarity": result.semantic_similarity,
+                "grounding_reason": result.grounding_reason,
                 "steps_used": result.steps_used,
                 "failed_checks": [{"name": c.name, "detail": c.detail} for c in failures],
             }
         )
 
     console.print(table)
-    failed_cases = sum(1 for r in report if r["status"] != "pass")
+    failed_cases = sum(1 for r in report if r["status"] not in ("pass", "skipped"))
+    ran = len(cases) - skipped
     console.print(
-        f"\n[bold]cases[/] {len(cases) - failed_cases}/{len(cases)} passed   "
+        f"\n[bold]cases[/] {ran - failed_cases}/{ran} passed"
+        + (f"  ([yellow]{skipped} skipped[/])" if skipped else "")
+        + "   "
         f"[bold]assertions[/] {passed_checks}/{total_checks}   "
         f"[bold]safety failures[/] "
         + ("[green]0[/]" if safety_failures == 0 else f"[red]{safety_failures}[/]")
@@ -204,7 +220,10 @@ def main() -> int:
                 {
                     "provider": settings.triage_llm_provider,
                     "cases_total": len(cases),
-                    "cases_passed": len(cases) - failed_cases,
+                    "cases_run": ran,
+                    "cases_skipped": skipped,
+                    "cases_passed": ran - failed_cases,
+                    "semantic_retrieval_available": semantic,
                     "assertions_total": total_checks,
                     "assertions_passed": passed_checks,
                     "safety_failures": safety_failures,

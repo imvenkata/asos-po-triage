@@ -88,17 +88,21 @@ src/triage/
   tools/         get_po · get_forecast · search_sops · submit_recommendation
   agent.py       bounded tool-calling loop + deterministic policy gate
   cli.py api.py  the two interfaces
-evals/           6 behavioural cases + scored runner
-tests/           35 unit tests
+evals/           7 behavioural cases + scored runner
+tests/           39 unit tests
 ```
 
 ## Testing
 
 ```bash
-make test            # 35 unit tests, no credentials required
-make eval-offline    # 6 eval cases against the offline double
+make test            # 39 unit tests, no credentials required
+make eval-offline    # 6 cases offline; 1 skipped (needs semantic retrieval)
 make eval            # the same cases against the configured live provider
 ```
+
+One case (`out_of_scope_question`) exercises the grounding guardrail, which
+requires a real embedding model. Offline it is reported as **skipped**, never as
+passed — see [WRITEUP.md](WRITEUP.md#the-guardrail-that-did-not-work).
 
 `make eval` exits non-zero on any failure, so it can gate CI. Safety assertions
 (no PII leakage, no fabricated citations, escalations always name a role) are
@@ -116,5 +120,5 @@ directly. See `.env.example` for the full list. The ones that matter:
 | `AZURE_OPENAI_CHAT_DEPLOYMENT` | `gpt-4o` | Chat deployment name |
 | `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | unset | Omit and retrieval runs lexical-only, loudly |
 | `TRIAGE_RETRIEVAL_TOP_K` | `6` | Before conflict closure |
-| `TRIAGE_MIN_RETRIEVAL_SCORE` | `0.012` | Below this the answer is treated as ungrounded |
+| `TRIAGE_MIN_SEMANTIC_SIMILARITY` | `0.30` | Cosine floor for grounding. Needs a real embedding model; uncalibrated |
 | `TRIAGE_MAX_AGENT_STEPS` | `6` | Hard ceiling on the tool-calling loop |
