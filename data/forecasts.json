@@ -1,0 +1,209 @@
+[
+  {
+    "sku": "SKU-AC-3301",
+    "category": "Accessories",
+    "forecast_units": 7000,
+    "actual_units": 6640,
+    "variance_units": -360,
+    "variance_pct": -5.14,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10120"
+    ]
+  },
+  {
+    "sku": "SKU-AC-5501",
+    "category": "Accessories",
+    "forecast_units": 6000,
+    "actual_units": 210,
+    "variance_units": -5790,
+    "variance_pct": -96.5,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10888"
+    ]
+  },
+  {
+    "sku": "SKU-AC-7788",
+    "category": "Accessories",
+    "forecast_units": 12000,
+    "actual_units": 11280,
+    "variance_units": -720,
+    "variance_pct": -6.0,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10820"
+    ]
+  },
+  {
+    "sku": "SKU-FW-1207",
+    "category": "Footwear",
+    "forecast_units": 12000,
+    "actual_units": 7640,
+    "variance_units": -4360,
+    "variance_pct": -36.33,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10777"
+    ]
+  },
+  {
+    "sku": "SKU-FW-2210",
+    "category": "Footwear",
+    "forecast_units": 1800,
+    "actual_units": 1585,
+    "variance_units": -215,
+    "variance_pct": -11.94,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10640"
+    ]
+  },
+  {
+    "sku": "SKU-FW-9080",
+    "category": "Footwear",
+    "forecast_units": 4000,
+    "actual_units": 2590,
+    "variance_units": -1410,
+    "variance_pct": -35.25,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10480"
+    ]
+  },
+  {
+    "sku": "SKU-MW-3390",
+    "category": "Menswear",
+    "forecast_units": 7000,
+    "actual_units": 5480,
+    "variance_units": -1520,
+    "variance_pct": -21.71,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10555",
+      "PO-10600"
+    ]
+  },
+  {
+    "sku": "SKU-MW-4402",
+    "category": "Menswear",
+    "forecast_units": 3500,
+    "actual_units": 2905,
+    "variance_units": -595,
+    "variance_pct": -17.0,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10310"
+    ]
+  },
+  {
+    "sku": "SKU-MW-8811",
+    "category": "Menswear",
+    "forecast_units": 2200,
+    "actual_units": 1390,
+    "variance_units": -810,
+    "variance_pct": -36.82,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10930"
+    ]
+  },
+  {
+    "sku": "SKU-WW-1001",
+    "category": "Womenswear",
+    "forecast_units": 9000,
+    "actual_units": 8640,
+    "variance_units": -360,
+    "variance_pct": -4.0,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10400",
+      "PO-10401",
+      "PO-10402"
+    ]
+  },
+  {
+    "sku": "SKU-WW-2244",
+    "category": "Womenswear",
+    "forecast_units": 2000,
+    "actual_units": 2050,
+    "variance_units": 50,
+    "variance_pct": 2.5,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10999"
+    ]
+  },
+  {
+    "sku": "SKU-WW-3080",
+    "category": "Womenswear",
+    "forecast_units": 900,
+    "actual_units": 905,
+    "variance_units": 5,
+    "variance_pct": 0.56,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10710"
+    ]
+  },
+  {
+    "sku": "SKU-WW-4411",
+    "category": "Womenswear",
+    "forecast_units": 5000,
+    "actual_units": 4820,
+    "variance_units": -180,
+    "variance_pct": -3.6,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10001"
+    ]
+  },
+  {
+    "sku": "SKU-WW-5150",
+    "category": "Womenswear",
+    "forecast_units": 5500,
+    "actual_units": 5190,
+    "variance_units": -310,
+    "variance_pct": -5.64,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10505"
+    ]
+  },
+  {
+    "sku": "SKU-WW-6710",
+    "category": "Womenswear",
+    "forecast_units": 1500,
+    "actual_units": 1455,
+    "variance_units": -45,
+    "variance_pct": -3.0,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10250"
+    ]
+  },
+  {
+    "sku": "SKU-WW-7712",
+    "category": "Womenswear",
+    "forecast_units": 2500,
+    "actual_units": 2470,
+    "variance_units": -30,
+    "variance_pct": -1.2,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10100"
+    ]
+  },
+  {
+    "sku": "SKU-WW-8820",
+    "category": "Womenswear",
+    "forecast_units": 8000,
+    "actual_units": 7310,
+    "variance_units": -690,
+    "variance_pct": -8.62,
+    "forecast_period": "2026-W37/2026-W44",
+    "linked_po_ids": [
+      "PO-10342"
+    ]
+  }
+]
