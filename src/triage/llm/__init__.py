@@ -1,4 +1,5 @@
-from .base import LLMClient, LLMResponse, ToolCall
-from .factory import build_llm_client
+from .base import LLMError
+from .chat import build_chat_model, describe
+from .embeddings import Embedder, build_embedder
 
-__all__ = ["LLMClient", "LLMResponse", "ToolCall", "build_llm_client"]
+__all__ = ["LLMError", "build_chat_model", "describe", "Embedder", "build_embedder"]

@@ -81,30 +81,27 @@ contract.
 corpus/          5 merch SOPs (~2,100 words). Contains a deliberate contradiction.
 data/            20 POs + forecasts. Values engineered to hit specific policy boundaries.
 src/triage/
-  llm/           provider protocol; Azure/OpenAI adapter; offline test double
+  llm/           chat + embedding clients; deterministic offline double
   ingest/        heading-aware chunker (chunk id == citation string)
   retrieval/     BM25 · dense · RRF fusion · conflict-closure invariant
   guardrails/    pii · contradiction · grounding
   tools/         get_po · get_forecast · search_sops · submit_recommendation
-  agent.py       bounded tool-calling loop + deterministic policy gate
+  agent.py       LangGraph tool-calling loop
+  policy_gate.py deterministic guardrail enforcement
   cli.py api.py  the two interfaces
 evals/           7 behavioural cases, scored runner, threshold calibrator
-alternatives/    the same agent orchestrated with LangGraph, for comparison
-tests/           47 unit tests
+tests/           42 unit tests
 ```
 
 ## Testing
 
 ```bash
-make test            # 47 unit tests, no credentials required
+make test            # 42 unit tests, no credentials required
 make eval-offline    # 6 cases offline; 1 skipped (needs semantic retrieval)
 make eval            # the same cases against the configured live provider
 
 # Re-derive the grounding threshold for your embedding model
 python evals/calibrate_threshold.py
-
-# The same suite through the LangGraph orchestration (see alternatives/)
-make eval-langgraph
 ```
 
 Measured against Azure OpenAI (`gpt-5.6-luna` + `text-embedding-3-small`):

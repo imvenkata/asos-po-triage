@@ -118,7 +118,7 @@ def cmd_audit(_: argparse.Namespace) -> int:
     from .retrieval.index import build_index
 
     settings = get_settings()
-    index = build_index(settings, llm=None)  # lexical only; no model needed
+    index = build_index(settings, embedder=None)  # lexical only; no model needed
     conflicts = detect_all_conflicts(index.chunks)
     console.print(f"[bold]{len(index.chunks)}[/] chunks, retrieval mode: {index.mode}")
     console.print(
@@ -158,19 +158,18 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         )
     console.print(table)
 
-    from .llm.factory import build_llm_client
-
-    try:
-        client = build_llm_client(settings)
-    except LLMError as exc:
-        console.print(f"[red]cannot build client:[/] {exc}")
-        return 1
+    from .llm.chat import build_chat_model, describe
+    from .llm.embeddings import build_embedder
 
     failed = False
     try:
-        reply = client.chat([{"role": "user", "content": "Reply with the single word: ok"}])
-        console.print(f"[green]✓ chat deployment reachable[/] ({client.name}): {(reply.text or '').strip()[:40]}")
-    except LLMError as exc:
+        model = build_chat_model(settings)
+        reply = model.invoke("Reply with the single word: ok")
+        console.print(
+            f"[green]✓ chat deployment reachable[/] ({describe(model, settings)}): "
+            f"{str(reply.content).strip()[:40]}"
+        )
+    except Exception as exc:  # noqa: BLE001 - doctor reports, never raises
         console.print(f"[red]✗ chat deployment unreachable:[/] {exc}")
         failed = True
 
@@ -178,9 +177,9 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     # and without it retrieval drops to lexical-only AND the grounding guardrail
     # goes inactive. A green chat check alone would hide both.
     try:
-        vector = client.embed(["connectivity probe"])[0]
+        vector = build_embedder(settings).embed(["connectivity probe"])[0]
         console.print(f"[green]✓ embedding deployment reachable[/] ({len(vector)} dims)")
-    except LLMError as exc:
+    except Exception as exc:  # noqa: BLE001
         console.print(f"[yellow]✗ embedding deployment unavailable:[/] {exc}")
         console.print(
             "[yellow]  → retrieval will run lexical-only and the grounding "

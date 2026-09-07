@@ -20,7 +20,7 @@ from rich.console import Console  # noqa: E402
 from rich.table import Table  # noqa: E402
 
 from triage.config import get_settings  # noqa: E402
-from triage.llm.factory import build_llm_client  # noqa: E402
+from triage.llm.embeddings import build_embedder  # noqa: E402
 from triage.logging_setup import setup_logging  # noqa: E402
 from triage.retrieval.index import build_index  # noqa: E402
 
@@ -68,8 +68,7 @@ OUT_OF_SCOPE = [
 def main() -> int:
     setup_logging("ERROR")
     settings = get_settings()
-    llm = build_llm_client(settings)
-    index = build_index(settings, llm)
+    index = build_index(settings, build_embedder(settings))
 
     if not index.semantic_scores_meaningful:
         console.print(

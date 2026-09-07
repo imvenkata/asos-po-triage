@@ -7,7 +7,8 @@ from ..config import Settings, get_settings
 from ..guardrails.contradiction import detect_all_conflicts
 from ..guardrails.pii import PiiRegistry, build_pii_registry
 from ..ingest.chunker import chunk_corpus
-from ..llm.base import LLMClient, LLMError
+from ..llm.base import LLMError
+from ..llm.embeddings import Embedder
 from ..logging_setup import get_logger
 from ..models import Chunk, RetrievedChunk
 from .dense import DenseIndex
@@ -23,12 +24,12 @@ class SopIndex:
         chunks: list[Chunk],
         registry: PiiRegistry,
         settings: Settings,
-        llm: LLMClient | None = None,
+        embedder: Embedder | None = None,
     ) -> None:
         self.chunks = chunks
         self.registry = registry
         self._settings = settings
-        self._llm = llm
+        self._embedder = embedder
 
         # Embed the heading alongside the body: headings carry most of the topic
         # signal in a policy corpus and are short enough to be free.
@@ -38,10 +39,10 @@ class SopIndex:
         self._by_id = {c.chunk_id: i for i, c in enumerate(chunks)}
         self._conflict_partners = self._build_conflict_graph()
 
-        if llm is not None:
+        if embedder is not None:
             try:
-                self._dense = DenseIndex(llm.embed(self._texts))
-                log.info("Dense index built over %d chunks (%s)", len(chunks), llm.name)
+                self._dense = DenseIndex(embedder.embed(self._texts))
+                log.info("Dense index built over %d chunks (%s)", len(chunks), embedder.name)
             except LLMError as exc:
                 # Degrade to lexical-only, but say so at WARNING and record it, so
                 # a half-working retriever never looks like a healthy one.
@@ -78,7 +79,7 @@ class SopIndex:
     def semantic_scores_meaningful(self) -> bool:
         """True only when a real embedding model built the dense index."""
         return self._dense is not None and bool(
-            getattr(self._llm, "provides_semantic_embeddings", False)
+            getattr(self._embedder, "provides_semantic_embeddings", False)
         )
 
     def informative_overlap(self, query: str) -> tuple[int, int]:
@@ -98,9 +99,9 @@ class SopIndex:
 
         lexical = self._bm25.search(query, pool)
         dense: list[tuple[int, float]] = []
-        if self._dense is not None and self._llm is not None:
+        if self._dense is not None and self._embedder is not None:
             try:
-                dense = self._dense.search(self._llm.embed([query])[0], pool)
+                dense = self._dense.search(self._embedder.embed([query])[0], pool)
             except LLMError as exc:
                 log.warning("Query embedding failed, this query is lexical-only: %s", exc)
 
@@ -149,7 +150,7 @@ class SopIndex:
 
 def build_index(
     settings: Settings | None = None,
-    llm: LLMClient | None = None,
+    embedder: Embedder | None = None,
     corpus_dir: Path | None = None,
 ) -> SopIndex:
     settings = settings or get_settings()
@@ -158,4 +159,4 @@ def build_index(
     if registry.is_empty:
         log.warning("No contact details found in corpus - PII registry is empty.")
     chunks = chunk_corpus(corpus_dir, registry)
-    return SopIndex(chunks, registry, settings, llm)
+    return SopIndex(chunks, registry, settings, embedder)

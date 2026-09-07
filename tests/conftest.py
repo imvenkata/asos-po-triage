@@ -1,7 +1,7 @@
 import pytest
 
 from triage.config import Settings
-from triage.llm.scripted import ScriptedLLMClient
+from triage.llm.embeddings import LocalEmbedder
 from triage.retrieval.index import build_index
 
 
@@ -12,4 +12,4 @@ def settings() -> Settings:
 
 @pytest.fixture(scope="session")
 def index(settings):
-    return build_index(settings, ScriptedLLMClient())
+    return build_index(settings, LocalEmbedder())

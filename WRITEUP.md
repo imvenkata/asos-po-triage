@@ -3,36 +3,24 @@
 ## Stack and provider
 
 **Python 3.11, Azure OpenAI** — chat deployment `gpt-5.6-luna`, embeddings
-`text-embedding-3-small` (1536-dim) — as preferred in the brief. All results
-below are measured against that live deployment, not simulated.
+`text-embedding-3-small` (1536-dim) — as preferred in the brief. Orchestration is
+**LangGraph**. All results below are measured against that live deployment, not
+simulated.
+
+The agent is a `StateGraph` with three nodes and one conditional edge, so the
+loop is declarative: `ToolNode` handles
+dispatch and argument parsing, tool schemas are derived from Pydantic models so
+they cannot drift from the function signatures, and adding a step — a re-ranker,
+or an `interrupt_before` pause for planner sign-off — is an edge change rather
+than surgery on control flow. For a workflow that should eventually stop for
+human approval, that last point is the one that matters.
 
 One compatibility note worth recording: this deployment **rejects an explicit
-`temperature`**, accepting only the model default. The adapter probes for this
-rather than assuming it from the deployment name — deployment names are
-arbitrary and carry no model metadata — and on rejection retries once without
-the parameter and remembers. It logs a warning when it does, because losing
-`temperature=0` weakens run-to-run reproducibility, which the eval suite depends
-on. Provider capability drift is a production reality, not an edge case. No agent framework — LangChain and Semantic Kernel
-both earn their place on multi-agent orchestration and long-lived memory, and
-this is a single agent with four tools and a bounded loop. Their abstractions
-would have hidden the two things worth reviewing here: the tool-calling loop
-itself and the policy gate that wraps it. The provider sits behind a Protocol
-(`llm/base.py`), so swapping to Semantic Kernel or Bedrock is one adapter.
-
-Because "why no framework" is a fair challenge rather than a settled question,
-`alternatives/langgraph_agent.py` is the same agent with the hand-written loop
-replaced by a LangGraph `StateGraph`. Both run the same eval suite
-(`make eval-langgraph`) and both score **7/7, 42/42, 0 safety failures**, with
-identical actions on all seven cases. They import the same `policy_gate.py` —
-a test asserts they resolve to the same function object.
-
-That result is the actual argument: the two orchestrations tie because **the loop
-was never the hard part.** LangGraph replaces ~105 lines and has no opinion about
-whether a citation is real or two SOP sections contradict each other; those 177
-lines get written either way. Where LangGraph would genuinely win here is
-`interrupt_before` — a triage workflow that pauses for planner sign-off is one
-line there and a redesign in the hand-written loop. Full comparison, including
-what it costs, in [alternatives/README.md](alternatives/README.md).
+`temperature`**, accepting only the model default. `temperature` is therefore
+left unset, and langchain-openai omits the parameter when it is None. The
+consequence is that runs are sampled rather than greedy, which weakens
+reproducibility — and the eval suite depends on reproducibility, so it is called
+out again under limitations rather than buried here.
 
 Retrieval is in-memory (NumPy + a hand-written BM25). For 28 chunks, FAISS or
 Chroma would add a dependency and an index-lifecycle problem to solve a scale
@@ -101,16 +89,15 @@ conflicts are defects, so they are rare.
 
 ### 2. Tool use
 
-Four tools, dispatched through a whitelist registry: `get_po`, `get_forecast`,
-`search_sops`, and `submit_recommendation` as the terminal tool. The model
-decides when to call them; the loop is capped at 6 steps. A hallucinated tool
-name is returned to the model as an error result rather than raised, so the loop
-can self-correct inside its budget.
+Four tools: `get_po`, `get_forecast`, `search_sops`, and `submit_recommendation`
+as the terminal tool that ends the graph. The model decides when to call them,
+and `recursion_limit` bounds the loop. Tool errors come back to the model as
+messages rather than raising, so it can self-correct inside its budget.
 
 ### 3. Structured output
 
 The final answer is a *tool call*, not parsed prose — `submit_recommendation`'s
-JSON schema mirrors the required contract, and the arguments are validated
+schema is a Pydantic model mirroring the required contract, and the arguments are validated
 through Pydantic. Invalid output gets one bounded repair attempt with the
 validation error fed back. If the model answers in prose instead, it is pushed
 back onto the contract rather than having its prose parsed.
@@ -169,7 +156,8 @@ history — see below.
 ### What live evaluation changed
 
 The offline harness passed 6/6. The first run against a real model passed 4/7,
-and every failure was a defect in my system rather than a flaky model.
+and every failure was a defect in my system rather than a flaky model. A fourth
+surfaced later, on a run that sampled differently.
 
 **1. My corpus permitted two different answers to the same question.** Two cases
 returned `raise_backorder` citing `backorder_reconciliation.md §1`. Reading it
@@ -181,7 +169,17 @@ ceiling to §1 — Tier 1 shortfalls are amended, Tier 4 exceptions escalate. Th
 planted contradiction is deliberate; this one was not, and only a live model
 found it.
 
-**2. The agent could talk itself past its own grounding gate.** The gate scored
+**2. My SOP text and my enforcement code disagreed about the same rule.**
+`variance_detection_sop.md §5` said conflicting thresholds must be escalated,
+full stop. The Python gate was cleverer than that — it only blocks when the PO's
+figures fall *between* the competing values. On a later run the model read §5
+literally: it reasoned correctly to "Tier 1, amend in place", then escalated
+anyway because two sections disagreed somewhere in the corpus. It was right and
+my corpus was wrong. §5 now carries the materiality rule the gate enforces.
+The general lesson is that when policy lives in text and enforcement lives in
+code, the two drift, and the model will follow the text.
+
+**3. The agent could talk itself past its own grounding gate.** The gate scored
 the union of everything retrieved, including the follow-up searches the model
 composed itself. Measured on the out-of-scope question: 0.444 across the union,
 0.368 on the user's own question — the model had rewritten it into policy
@@ -190,7 +188,7 @@ seed retrieval on what the user actually asked. "Does the corpus cover this
 question?" is not the same question as "did the model eventually find something
 that embeds nearby?"
 
-**3. The threshold was uncalibrated, and calibrating it honestly made it worse.**
+**4. The threshold was uncalibrated, and calibrating it honestly made it worse.**
 `evals/calibrate_threshold.py` embeds a labelled set and sweeps the operating
 point. On 10 well-formed in-scope questions vs 10 out-of-scope, separation was
 clean — 100% balanced accuracy, margin 0.104. That number was an artefact of a

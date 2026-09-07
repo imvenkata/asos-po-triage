@@ -1,14 +1,11 @@
 """The deterministic policy gate.
 
-Extracted from the agent on purpose: the gate is not a property of any one
-orchestration strategy. `agent.py` (hand-written loop) and
-`alternatives/langgraph_agent.py` (LangGraph StateGraph) both call this exact
-function, which is the concrete demonstration of the claim in WRITEUP.md - swap
-the orchestration framework and the guardrails do not move.
+Runs after the model has spoken and enforces what must hold regardless of what
+the model said: citations are validated, grounding is checked, policy conflicts
+are detected, invariants are applied, and PII is scrubbed.
 
-It runs after the model has spoken and enforces what must hold regardless of
-what the model said. Nothing here calls an LLM; it is pure, deterministic, and
-directly unit-testable.
+Kept out of the agent because it is a separate concern from orchestration.
+Nothing here calls an LLM - it is pure, deterministic, and directly unit-testable.
 """
 from __future__ import annotations
 

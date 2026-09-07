@@ -41,4 +41,8 @@ Planners must not extrapolate a threshold that is not written down. If the appli
 
 ## §5. Conflicting Guidance
 
-Where two policy documents, or two sections of the same document, specify different thresholds for the same decision, the exception must be escalated to a Senior Merch Planner for adjudication. Planners must not select whichever threshold is more permissive. The conflict must be recorded so that Merchandising Operations can reconcile the policy.
+Where two policy documents, or two sections of the same document, specify different thresholds for the same decision, the exception must be escalated to a Senior Merch Planner for adjudication **where the conflict is material to this PO**. Planners must not select whichever threshold is more permissive.
+
+A conflict is material only where the PO's measured figures fall **between** the competing thresholds, so that the two sections would produce different outcomes. Where the PO's figures sit below all of the competing thresholds, or above all of them, both sections agree on the outcome and the exception is handled normally under the applicable tier.
+
+Every conflict is recorded for Merchandising Operations to reconcile, whether or not it was material to the PO in hand.

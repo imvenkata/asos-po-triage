@@ -1,2 +1,3 @@
-from .registry import ToolRegistry, build_tool_registry
-__all__ = ["ToolRegistry", "build_tool_registry"]
+from .registry import TERMINAL_TOOL, RetrievalRecorder, build_tools
+
+__all__ = ["TERMINAL_TOOL", "RetrievalRecorder", "build_tools"]
