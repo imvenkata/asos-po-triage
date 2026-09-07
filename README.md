@@ -104,9 +104,14 @@ make eval            # the same cases against the configured live provider
 python evals/calibrate_threshold.py
 ```
 
-Measured against Azure OpenAI (`gpt-5.6-luna` + `text-embedding-3-small`):
-**7/7 cases, 42/42 assertions, 0 safety failures.** The first live run was 4/7 —
-see [WRITEUP.md](WRITEUP.md#what-live-evaluation-changed).
+Measured against Azure OpenAI (`gpt-5.6-luna` chat + `text-embedding-3-small`
+embeddings): **7/7 cases, 42/42 assertions, 0 safety failures.** The first live
+run was 4/7 — see [WRITEUP.md](WRITEUP.md#what-live-evaluation-changed).
+
+Across repeated runs the suite moves between 6/7 and 7/7. The flip is always a
+confidence assertion, never an action or a safety gate: this deployment rejects
+an explicit `temperature`, so runs are sampled rather than greedy. The assertion
+is left strict rather than loosened.
 
 One case (`out_of_scope_question`) exercises the grounding guardrail, which
 requires a real embedding model. Offline it is reported as **skipped**, never as
@@ -125,7 +130,7 @@ directly. See `.env.example` for the full list. The ones that matter:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `TRIAGE_LLM_PROVIDER` | `azure` | `azure` · `openai` · `scripted` |
-| `AZURE_OPENAI_CHAT_DEPLOYMENT` | `gpt-4o` | Chat deployment name |
+| `AZURE_OPENAI_CHAT_DEPLOYMENT` | `gpt-5.6-luna` | Chat deployment **name**, not model name |
 | `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | unset | Omit and retrieval runs lexical-only, loudly |
 | `TRIAGE_RETRIEVAL_TOP_K` | `6` | Before conflict closure |
 | `TRIAGE_MIN_SEMANTIC_SIMILARITY` | `0.38` | Cosine floor for grounding. Needs a real embedding model; calibrated via `evals/calibrate_threshold.py` |
