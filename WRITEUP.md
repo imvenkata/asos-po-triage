@@ -22,10 +22,27 @@ consequence is that runs are sampled rather than greedy, which weakens
 reproducibility — and the eval suite depends on reproducibility, so it is called
 out again under limitations rather than buried here.
 
-Retrieval is in-memory (NumPy + a hand-written BM25). For 28 chunks, FAISS or
-Chroma would add a dependency and an index-lifecycle problem to solve a scale
-problem that does not exist. `SopIndex` is the seam where Azure AI Search would
-go.
+Retrieval is in-memory (NumPy + a hand-written BM25). Measured, a query is
+**0.07 ms** over 0.2 MB of vectors; a round trip to a managed vector store is
+10-50 ms, so at this size Pinecone, Qdrant or FAISS would make retrieval two to
+three orders of magnitude slower in exchange for approximating a search that
+currently completes exactly.
+
+Scale is not what would drive that decision anyway. 10,000 chunks is still only
+~59 MB in float32 and stays comfortably in memory; you need a real store at
+around a million. **Persistence arrives first** - every process start currently
+re-embeds the whole corpus, which nobody notices at 28 chunks and becomes a real
+cold-start cost at ten thousand. After that: metadata filtering at query time,
+multi-replica serving, and corpus versioning so a recommendation can be replayed
+against the policy that was live when it was made.
+
+The destination is Azure AI Search rather than Pinecone or Qdrant - it is native
+to the stack in the role description, does BM25 + vector hybrid with a semantic
+reranker, and keeps SOP and PO data inside the tenancy. `SopIndex` is the seam.
+One caveat on that swap: conflict closure is computed at index-build time over
+the whole corpus, so a remote store means either keeping the corpus locally
+anyway or precomputing the conflict graph offline and storing it as chunk
+metadata. The retrieval call ports cleanly; the invariant needs redesigning.
 
 ---
 
