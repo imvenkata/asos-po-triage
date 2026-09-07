@@ -59,8 +59,6 @@ class Settings(BaseSettings):
 
     # --- agent ------------------------------------------------------------
     triage_max_agent_steps: int = 6
-    # None, or a value the deployment rejects, means the model default is used.
-    triage_temperature: float | None = 0.0
     triage_request_timeout_s: float = 60.0
 
     log_level: str = Field(default="INFO")

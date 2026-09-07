@@ -300,7 +300,16 @@ shape.
 is one sample, and because `gpt-5.6-luna` pins temperature to its default, runs
 are sampled rather than greedy. With 7 cases a single flip moves the pass rate 14
 points, so 7/7 should be read as "no failures observed in one run", not as a
-stable rate. Real numbers need n≥5 per case with variance reported — and on this
+stable rate.
+
+Observed across repeated runs, the suite moves between 6/7 and 7/7, and the flip
+is **always a confidence assertion** — `sops_silent_overconfirmation` returned
+`low` on one run and `high` on the next, with the action, the escalation role and
+every safety gate identical both times. That is a useful shape: the parts under
+deterministic control do not move, and the part that moves is the model's
+uncalibrated self-report, which is exactly the field I would not ship without
+calibration. I have deliberately not loosened the assertion to make the suite go
+green - it is reporting something true. Real numbers need n≥5 per case with variance reported — and on this
 deployment that is required, not merely advisable.
 
 **The cosine floor is calibrated on n=25, which is small.** The classes overlap,

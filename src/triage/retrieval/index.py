@@ -86,10 +86,6 @@ class SopIndex:
         return self._bm25.informative_overlap(query)
 
     @property
-    def conflict_partners(self) -> dict[str, set[str]]:
-        return self._conflict_partners
-
-    @property
     def mode(self) -> str:
         return "hybrid (BM25 + dense, RRF)" if self._dense else "lexical-only (BM25)"
 

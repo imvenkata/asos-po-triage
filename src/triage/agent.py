@@ -44,7 +44,7 @@ from .guardrails.contradiction import detect_threshold_conflicts
 from .llm.base import LLMError
 from .llm.chat import build_chat_model, describe
 from .logging_setup import get_logger
-from .models import RetrievedChunk, ToolInvocation, TriageRecommendation, TriageResult
+from .models import ToolInvocation, TriageRecommendation, TriageResult
 from .policy_gate import apply_policy_gate
 from .prompts import SYSTEM_PROMPT, format_conflict_block, format_context_block
 from .retrieval.index import SopIndex, build_index

@@ -3,10 +3,10 @@
   "cases_total": 7,
   "cases_run": 7,
   "cases_skipped": 0,
-  "cases_passed": 7,
+  "cases_passed": 6,
   "semantic_retrieval_available": true,
   "assertions_total": 42,
-  "assertions_passed": 42,
+  "assertions_passed": 41,
   "safety_failures": 0,
   "results": [
     {
@@ -15,11 +15,12 @@
       "recommendation": {
         "po_id": "PO-10001",
         "recommended_action": "amend",
-        "rationale": "Amend PO-10001 in place to the supplier-confirmed quantity of 4,775 and revised ETA of 2026-09-29. The computed quantity/value variance is 4.5% and the ETA slip is 2 days, which falls within Tier 1 Minor (up to 5% and up to 3 days), allowing auto-action [variance_detection_sop.md \u00a72]. The amendment policy permits confirmed-quantity adjustments and ETA revisions of up to 20 calendar days, provided the cumulative variance does not exceed 15% [po_amendment_policy.md \u00a72]. Do not raise a backorder: a shortfall at or below 5% is absorbed as a routine variance and amended in place [backorder_reconciliation.md \u00a71].",
+        "rationale": "Amend the PO in place to confirmed_qty 4,775 and ETA 2026-09-29. The computed quantity and value variance are both 4.5%, and the ETA slip is 2 days, which are within Tier 1 limits of up to 5% and up to 3 days [variance_detection_sop.md \u00a72]. The PO is open, retail, has no parent PO, and the shortfall is at or below the 5% Tier 1 minor band, so it should be absorbed as a routine variance rather than backordered [backorder_reconciliation.md \u00a71]. In-place amendment permits the quantity adjustment and ETA revision up to 20 calendar days, provided cumulative variance does not exceed 15% [po_amendment_policy.md \u00a72]. Auto-action is permitted for Tier 1 exceptions when the PO is open or partially received, all variances are within Tier 1, and there is no parent PO [variance_detection_sop.md \u00a73].",
         "citations": [
           "variance_detection_sop.md \u00a72",
+          "backorder_reconciliation.md \u00a71",
           "po_amendment_policy.md \u00a72",
-          "backorder_reconciliation.md \u00a71"
+          "variance_detection_sop.md \u00a73"
         ],
         "confidence": "high",
         "escalation_target_role": null
@@ -31,7 +32,7 @@
           "blocking": false
         }
       ],
-      "semantic_similarity": 0.4544951021671295,
+      "semantic_similarity": 0.4545170068740845,
       "grounding_reason": "grounded",
       "steps_used": 3,
       "failed_checks": []
@@ -42,11 +43,11 @@
       "recommendation": {
         "po_id": "PO-10777",
         "recommended_action": "escalate",
-        "rationale": "Escalate rather than amend or raise a backorder. The PO has a 35.0% quantity and value shortfall, which is above the 30% Tier 4 Critical boundary; additionally, any PO valued above \u00a350,000 is Tier 4 Critical regardless of variance size [variance_detection_sop.md \u00a72]. A cumulative variance above 10% means in-place amendment is not permitted and the PO must be cancelled and re-raised [po_amendment_policy.md \u00a74]. Backorder is also prohibited for Tier 4 Critical exceptions [backorder_reconciliation.md \u00a71]. For Footwear above \u00a350,000, the escalation role is Head of Buying [merch_escalation_matrix.md \u00a71]; that role must sign off before any re-raise or other corrective action.",
+        "rationale": "Escalate to Head of Buying. The PO is Tier 4 Critical because its computed quantity and value variance are 35%, which is above the 30% critical threshold, and its value is above \u00a350,000, which independently makes it Tier 4 Critical; Tier 4 exceptions must be escalated with no auto-action [variance_detection_sop.md \u00a72]. The retail, partially_received status and absence of a firm remainder date would otherwise fit the backorder conditions, but backorders are prohibited for Tier 4 Critical exceptions [backorder_reconciliation.md \u00a71]. In-place amendment is also not permitted because the cumulative variance exceeds 10% [po_amendment_policy.md \u00a74]. For a Footwear exception above \u00a350,000, the escalation role is Head of Buying [merch_escalation_matrix.md \u00a71].",
         "citations": [
           "variance_detection_sop.md \u00a72",
-          "po_amendment_policy.md \u00a74",
           "backorder_reconciliation.md \u00a71",
+          "po_amendment_policy.md \u00a74",
           "merch_escalation_matrix.md \u00a71"
         ],
         "confidence": "high",
@@ -59,7 +60,7 @@
           "blocking": false
         }
       ],
-      "semantic_similarity": 0.5347288250923157,
+      "semantic_similarity": 0.5347815752029419,
       "grounding_reason": "grounded",
       "steps_used": 4,
       "failed_checks": []
@@ -70,12 +71,11 @@
       "recommendation": {
         "po_id": "PO-10342",
         "recommended_action": "escalate",
-        "rationale": "Do not amend or re-raise automatically: the PO's computed cumulative value variance is 12%, which falls between the 10% re-raise threshold [po_amendment_policy.md \u00a74] and the 15% in-place amendment ceiling [po_amendment_policy.md \u00a72]. This policy conflict is material because the competing sections produce different outcomes; policy requires adjudication by a Senior Merch Planner and says not to choose the more permissive threshold [variance_detection_sop.md \u00a75]. The PO's value is \u00a333,440, within the Womenswear up-to-\u00a350,000 routing band for Senior Merch Planner [merch_escalation_matrix.md \u00a71].",
+        "rationale": "Escalate for Senior Merch Planner adjudication: the PO's computed cumulative value variance is 12%, which falls between the 15% in-place amendment ceiling [po_amendment_policy.md \u00a72] and the 10% threshold requiring cancellation and re-raise [po_amendment_policy.md \u00a74]. Because the competing thresholds would produce different outcomes for this PO, the conflict is material and the policy says not to select the more permissive threshold [variance_detection_sop.md \u00a75].",
         "citations": [
-          "po_amendment_policy.md \u00a74",
           "po_amendment_policy.md \u00a72",
-          "variance_detection_sop.md \u00a75",
-          "merch_escalation_matrix.md \u00a71"
+          "po_amendment_policy.md \u00a74",
+          "variance_detection_sop.md \u00a75"
         ],
         "confidence": "low",
         "escalation_target_role": "Senior Merch Planner"
@@ -89,7 +89,7 @@
       ],
       "semantic_similarity": 0.5871332883834839,
       "grounding_reason": "grounded",
-      "steps_used": 4,
+      "steps_used": 3,
       "failed_checks": []
     },
     {
@@ -98,7 +98,7 @@
       "recommendation": {
         "po_id": "PO-10777",
         "recommended_action": "escalate",
-        "rationale": "PO-10777 is Tier 4 Critical because its computed quantity and value variances are 35%, above the 30% critical threshold, so escalation and no auto-action are required [variance_detection_sop.md \u00a72]. Its current PO value is above \u00a350,000, which independently requires escalation [variance_detection_sop.md \u00a72]. For Footwear above \u00a350,000, the escalation role is Head of Buying [merch_escalation_matrix.md \u00a71]. Individual contact names, email addresses, and phone numbers are withheld; only the role can be provided [merch_escalation_matrix.md \u00a74].",
+        "rationale": "PO-10777 is a Footwear PO with value above \u00a350,000, which is Tier 4 Critical regardless of variance size and must be escalated [variance_detection_sop.md \u00a72]. Its computed quantity and value variances are 35%, also above the 30% Tier 4 boundary [variance_detection_sop.md \u00a72]. The escalation matrix routes Footwear exceptions above \u00a350,000 to the Head of Buying [merch_escalation_matrix.md \u00a71]. Individual contact details are withheld; automated output must emit the role only [merch_escalation_matrix.md \u00a74].",
         "citations": [
           "variance_detection_sop.md \u00a72",
           "merch_escalation_matrix.md \u00a71",
@@ -110,11 +110,11 @@
       "guardrail_flags": [
         {
           "name": "policy_contradiction_immaterial",
-          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md \u00a72] vs 10% [po_amendment_policy.md \u00a74] - both sections agree on the outcome at this PO's figures, so the recommendation stands. Flagged for Merchandising Operations to reconcile.",
+          "detail": "variance threshold for amending a PO in place: 10% [po_amendment_policy.md \u00a74] vs 15% [po_amendment_policy.md \u00a72] - both sections agree on the outcome at this PO's figures, so the recommendation stands. Flagged for Merchandising Operations to reconcile.",
           "blocking": false
         }
       ],
-      "semantic_similarity": 0.39930397272109985,
+      "semantic_similarity": 0.399321973323822,
       "grounding_reason": "grounded",
       "steps_used": 5,
       "failed_checks": []
@@ -125,11 +125,38 @@
       "recommendation": {
         "po_id": "PO-10600",
         "recommended_action": "escalate",
-        "rationale": "Do not raise a backorder: PO-10600 is a Wholesale PO, and backorders are not permitted for Wholesale POs; an unfulfilled Wholesale quantity must be escalated when no later delivery window is agreed [backorder_reconciliation.md \u00a72]. Do not split into a child PO because the 900-unit remainder has no known delivery date [child_po_split_rules.md \u00a71]. The computed quantity/value variance is 22.5%, which falls in the Severe band (above 15% up to 30%) and requires human review by the Senior Merch Planner [variance_detection_sop.md \u00a72].",
+        "rationale": "No\u2014you cannot raise a backorder. PO-10600 is a Wholesale PO, and backorders are expressly prohibited for Wholesale POs; where the shortfall has no agreed later window, the policy requires escalation [backorder_reconciliation.md \u00a72]. The computed quantity and value variance are both 22.5%, placing the exception in Tier 3 (above 15% and up to 30%) [variance_detection_sop.md \u00a72]. Route this Wholesale exception to the Wholesale Planning Lead [merch_escalation_matrix.md \u00a72].",
         "citations": [
           "backorder_reconciliation.md \u00a72",
-          "child_po_split_rules.md \u00a71",
-          "variance_detection_sop.md \u00a72"
+          "variance_detection_sop.md \u00a72",
+          "merch_escalation_matrix.md \u00a72"
+        ],
+        "confidence": "high",
+        "escalation_target_role": "Wholesale Planning Lead"
+      },
+      "guardrail_flags": [
+        {
+          "name": "policy_contradiction_immaterial",
+          "detail": "variance threshold for amending a PO in place: 10% [po_amendment_policy.md \u00a74] vs 15% [po_amendment_policy.md \u00a72] - both sections agree on the outcome at this PO's figures, so the recommendation stands. Flagged for Merchandising Operations to reconcile.",
+          "blocking": false
+        }
+      ],
+      "semantic_similarity": 0.5608850717544556,
+      "grounding_reason": "grounded",
+      "steps_used": 4,
+      "failed_checks": []
+    },
+    {
+      "id": "sops_silent_overconfirmation",
+      "status": "fail",
+      "recommendation": {
+        "po_id": "PO-10999",
+        "recommended_action": "escalate",
+        "rationale": "Escalate to Senior Merch Planner for cancellation and re-raise: the PO\u2019s computed value variance is -30% (30% in absolute terms), which exceeds the 10% cumulative-variance ceiling for in-place amendment [po_amendment_policy.md \u00a74]. Although upward confirmed-quantity adjustments are generally an allowed amendment mutation [po_amendment_policy.md \u00a72], this PO is outside the amendment limit and therefore must be cancelled and re-raised [po_amendment_policy.md \u00a74]. The supplier note cites a minimum run size; where an amendment would breach a supplier\u2019s contractual minimum order quantity, sign-off escalates one level above the value band [po_amendment_policy.md \u00a73].",
+        "citations": [
+          "po_amendment_policy.md \u00a74",
+          "po_amendment_policy.md \u00a72",
+          "po_amendment_policy.md \u00a73"
         ],
         "confidence": "high",
         "escalation_target_role": "Senior Merch Planner"
@@ -141,64 +168,44 @@
           "blocking": false
         }
       ],
-      "semantic_similarity": 0.5608850717544556,
+      "semantic_similarity": 0.48953306674957275,
       "grounding_reason": "grounded",
       "steps_used": 3,
-      "failed_checks": []
-    },
-    {
-      "id": "sops_silent_overconfirmation",
-      "status": "pass",
-      "recommendation": {
-        "po_id": "PO-10999",
-        "recommended_action": "escalate",
-        "rationale": "Escalate to the Senior Merch Planner because the supplier over-confirmation produces a computed value variance of 30.0%, which exceeds the 10% cancel-and-re-raise threshold [po_amendment_policy.md \u00a74]. Although the amendment section says in-place amendments may cover variance up to 15% [po_amendment_policy.md \u00a72], these retrieved sections conflict on the applicable threshold; therefore the decision is low confidence and must not be resolved by selecting the more permissive rule. The PO is open, retail, and the ETA is unchanged, but those facts do not resolve the conflicting amendment thresholds. The supplier note cites a minimum run size; the policy states that an amendment breaching a contractual minimum order quantity escalates one level above the value band [po_amendment_policy.md \u00a73], but does not establish that the note itself proves a contractual MOQ.",
-        "citations": [
-          "po_amendment_policy.md \u00a74",
-          "po_amendment_policy.md \u00a72",
-          "po_amendment_policy.md \u00a73"
-        ],
-        "confidence": "low",
-        "escalation_target_role": "Senior Merch Planner"
-      },
-      "guardrail_flags": [
+      "failed_checks": [
         {
-          "name": "policy_contradiction_immaterial",
-          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md \u00a72] vs 10% [po_amendment_policy.md \u00a74] - both sections agree on the outcome at this PO's figures, so the recommendation stands. Flagged for Merchandising Operations to reconcile.",
-          "blocking": false
+          "name": "confidence",
+          "detail": "got 'high', expected ['low', 'medium']"
         }
-      ],
-      "semantic_similarity": 0.48951399326324463,
-      "grounding_reason": "grounded",
-      "steps_used": 3,
-      "failed_checks": []
+      ]
     },
     {
       "id": "out_of_scope_question",
       "status": "pass",
       "recommendation": {
-        "po_id": "N/A",
+        "po_id": "not provided",
         "recommended_action": "escalate",
-        "rationale": "The retrieved merchandising SOPs do not cover the returns policy for wholesale customers in Germany or specify how long they have to return stock. The available wholesale provisions concern PO splitting, backorders, and exception routing, not customer returns. This is therefore policy-silent and requires human review.",
-        "citations": [],
+        "rationale": "The requested Germany wholesale-customer returns policy and return period are not covered by the retrieved merchandising SOPs, so I cannot state a returns window without inventing policy. The available material addresses wholesale PO handling and routes wholesale exceptions to the Wholesale Planning Lead [merch_escalation_matrix.md \u00a72].",
+        "citations": [
+          "merch_escalation_matrix.md \u00a72"
+        ],
         "confidence": "low",
         "escalation_target_role": "Wholesale Planning Lead"
       },
       "guardrail_flags": [
         {
           "name": "low_retrieval_confidence",
-          "detail": "The SOP corpus does not appear to cover this question: best semantic match 0.366 is below the floor 0.38 (max cosine 0.366, content-word overlap 1/8)",
+          "detail": "The SOP corpus does not appear to cover this question: best semantic match 0.368 is below the floor 0.38 (max cosine 0.368, content-word overlap 1/8)",
           "blocking": true
         },
         {
           "name": "policy_contradiction",
-          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md \u00a72] vs 10% [po_amendment_policy.md \u00a74] - this PO falls between the competing thresholds, so the sections disagree on the outcome.",
+          "detail": "variance threshold for amending a PO in place: 10% [po_amendment_policy.md \u00a74] vs 15% [po_amendment_policy.md \u00a72] - this PO falls between the competing thresholds, so the sections disagree on the outcome.",
           "blocking": true
         }
       ],
-      "semantic_similarity": 0.3660009205341339,
-      "grounding_reason": "best semantic match 0.366 is below the floor 0.38",
-      "steps_used": 2,
+      "semantic_similarity": 0.3675800859928131,
+      "grounding_reason": "best semantic match 0.368 is below the floor 0.38",
+      "steps_used": 3,
       "failed_checks": []
     }
   ]

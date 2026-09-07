@@ -201,7 +201,6 @@ def apply_policy_gate(
         resolved_citations=verdict.resolved,
         dropped_citations=verdict.fabricated,
         tool_calls=tool_log,
-        top_fused_score=round(max((r.score for r in retrieved), default=0.0), 5),
         semantic_similarity=grounding.semantic_similarity,
         grounding_reason=grounding.reason,
         steps_used=steps,

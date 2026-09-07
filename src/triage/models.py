@@ -129,7 +129,6 @@ class ToolInvocation(BaseModel):
     name: str
     arguments: dict[str, Any]
     result_summary: str
-    error: str | None = None
 
 
 class TriageResult(BaseModel):
@@ -143,9 +142,6 @@ class TriageResult(BaseModel):
     # Citations matching no section in the corpus. Invented, and dropped.
     dropped_citations: list[str] = Field(default_factory=list)
     tool_calls: list[ToolInvocation] = Field(default_factory=list)
-    # Fused RRF score of the best hit. Ordering diagnostic only - NOT a
-    # relevance measure (RRF is rank-based). Kept for debugging retrieval order.
-    top_fused_score: float = 0.0
     # Max cosine similarity, or None where no semantic embedding model was used.
     semantic_similarity: float | None = None
     grounding_reason: str = ""

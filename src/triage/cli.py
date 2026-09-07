@@ -71,7 +71,7 @@ def render(result: TriageResult, show_trace: bool = False) -> None:
                 str(call.step),
                 call.name,
                 escape(json.dumps(call.arguments)[:90]),
-                escape(call.error or call.result_summary),
+                escape(call.result_summary),
             )
         console.print(trace)
 
