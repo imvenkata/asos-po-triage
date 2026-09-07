@@ -21,19 +21,16 @@ from pydantic import ValidationError
 
 from .config import Settings, get_settings
 from .data_access import PoRepository, get_repository
-from .guardrails.contradiction import detect_all_conflicts, detect_threshold_conflicts
-from .guardrails.grounding import assess_grounding, validate_citations
-from .guardrails.pii import redact, scan_for_pii
+from .guardrails.contradiction import detect_threshold_conflicts
 from .llm.base import LLMClient, LLMError
 from .logging_setup import get_logger
 from .models import (
-    Chunk,
-    GuardrailFlag,
     RetrievedChunk,
     ToolInvocation,
     TriageRecommendation,
     TriageResult,
 )
+from .policy_gate import apply_policy_gate
 from .prompts import SYSTEM_PROMPT, format_conflict_block, format_context_block
 from .retrieval.index import SopIndex, build_index
 from .tools.po_tools import compute_variance
@@ -243,169 +240,26 @@ class TriageAgent:
         observations: dict[str, float] | None = None,
         seed: list[RetrievedChunk] | None = None,
     ) -> TriageResult:
-        flags: list[GuardrailFlag] = []
-        po_id = _guess_po_id(question, tool_log)
+        """Hand off to the shared policy gate.
 
-        if raw is None:
-            flags.append(
-                GuardrailFlag(
-                    name="no_valid_submission",
-                    detail=f"Agent produced no schema-valid recommendation within {steps} steps.",
-                    blocking=True,
-                )
-            )
-            rec = TriageRecommendation(
-                po_id=po_id,
-                recommended_action="escalate",
-                rationale="The agent did not produce a valid recommendation within its "
-                "step budget, so the exception is handed to a human unresolved.",
-                citations=[],
-                confidence="low",
-                escalation_target_role="Senior Merch Planner",
-            )
-        else:
-            rec = TriageRecommendation(**raw)
-
-        # 1. Citation validity - three-way, because "not retrieved" and
-        #    "does not exist" are different failures.
-        verdict = validate_citations(
-            rec.citations, registry.exposed_chunk_ids, self._index.chunk_ids
-        )
-        if verdict.resolved:
-            flags.append(
-                GuardrailFlag(
-                    name="citation_resolved_by_reference",
-                    detail=f"Cited real corpus sections that were not themselves "
-                    f"retrieved (followed via cross-reference): {verdict.resolved}",
-                )
-            )
-        if verdict.fabricated:
-            flags.append(
-                GuardrailFlag(
-                    name="fabricated_citation",
-                    detail=f"Dropped citations matching no section in the corpus: "
-                    f"{verdict.fabricated}",
-                    blocking=True,
-                )
-            )
-        rec.citations = verdict.kept
-
-        # 2. Grounding - refuse to answer from thin air.
-        matched, total = self._index.informative_overlap(question)
-        # Deliberately the SEED retrieval - the search on what the user actually
-        # asked - not registry.retrieved, which accumulates every follow-up query
-        # the model issued. Measured: an out-of-scope question scored 0.444 across
-        # the union but 0.368 on the seed, because the model rewrote it into
-        # policy vocabulary. Scoring the union lets the agent talk itself past its
-        # own grounding gate.
-        grounding = assess_grounding(
-            seed if seed is not None else registry.retrieved,
-            matched,
-            total,
-            self._index.semantic_scores_meaningful,
-            self._settings.triage_min_semantic_similarity,
-        )
-        if not grounding.grounded:
-            flags.append(
-                GuardrailFlag(
-                    name="low_retrieval_confidence",
-                    detail=f"The SOP corpus does not appear to cover this question: "
-                    f"{grounding.as_detail()}",
-                    blocking=True,
-                )
-            )
-        elif not grounding.active:
-            # Visible, not silent: the operator must know a control is switched off.
-            flags.append(
-                GuardrailFlag(
-                    name="grounding_check_inactive",
-                    detail=grounding.as_detail(),
-                    blocking=False,
-                )
-            )
-        if grounding.grounded and not rec.citations:
-            flags.append(
-                GuardrailFlag(
-                    name="uncited_recommendation",
-                    detail="Recommendation carried no verifiable citation.",
-                    blocking=True,
-                )
-            )
-
-        # 3. Policy contradiction across everything the model was shown.
-        seen: list[Chunk] = []
-        seen_ids: set[str] = set()
-        for hit in registry.retrieved:
-            if hit.chunk.chunk_id not in seen_ids:
-                seen_ids.add(hit.chunk.chunk_id)
-                seen.append(hit.chunk)
-        material = detect_threshold_conflicts(seen, observations)
-        material_keys = {c.dimension.key for c in material}
-        for conflict in material:
-            flags.append(
-                GuardrailFlag(
-                    name="policy_contradiction",
-                    detail=f"{conflict.describe()} - this PO falls between the "
-                    "competing thresholds, so the sections disagree on the outcome.",
-                    blocking=True,
-                )
-            )
-        # Conflicts that exist in the corpus but do not change THIS decision are
-        # reported for policy hygiene without blocking the recommendation.
-        for conflict in detect_all_conflicts(seen):
-            if conflict.dimension.key not in material_keys:
-                flags.append(
-                    GuardrailFlag(
-                        name="policy_contradiction_immaterial",
-                        detail=f"{conflict.describe()} - both sections agree on the "
-                        "outcome at this PO's figures, so the recommendation stands. "
-                        "Flagged for Merchandising Operations to reconcile.",
-                        blocking=False,
-                    )
-                )
-
-        # 4. Enforce the invariants. A blocking flag means no auto-action, whatever
-        #    the model chose. The original action is recorded for audit.
-        if any(f.blocking for f in flags):
-            if rec.recommended_action != "escalate":
-                flags.append(
-                    GuardrailFlag(
-                        name="action_overridden",
-                        detail=f"Model proposed '{rec.recommended_action}'; overridden to "
-                        "'escalate' because a blocking guardrail fired.",
-                    )
-                )
-                rec.recommended_action = "escalate"
-            rec.confidence = "low"
-            if rec.escalation_target_role is None:
-                rec.escalation_target_role = "Senior Merch Planner"
-
-        # 5. PII - defence in depth. Index-time redaction is the real control;
-        #    this catches leaks arriving by any other route (e.g. the question).
-        leaks = scan_for_pii(rec.rationale, self._index.registry)
-        if leaks:
-            rec.rationale, _ = redact(rec.rationale, self._index.registry)
-            flags.append(
-                GuardrailFlag(
-                    name="pii_in_output",
-                    detail=f"Redacted from rationale: {leaks}",
-                    blocking=True,
-                )
-            )
-
-        return TriageResult(
-            recommendation=rec,
-            guardrail_flags=flags,
-            retrieved_chunk_ids=sorted(registry.exposed_chunk_ids),
-            resolved_citations=verdict.resolved,
-            dropped_citations=verdict.fabricated,
-            tool_calls=tool_log,
-            top_fused_score=round(max((r.score for r in registry.retrieved), default=0.0), 5),
-            semantic_similarity=grounding.semantic_similarity,
-            grounding_reason=grounding.reason,
-            steps_used=steps,
-            provider=getattr(self._llm, "name", "unknown"),
+        The gate lives in `policy_gate.py` rather than here because it is not a
+        property of this orchestration strategy - the LangGraph implementation in
+        `alternatives/` calls the same function with the same arguments.
+        """
+        return apply_policy_gate(
+            question=question,
+            raw=raw,
+            index=self._index,
+            settings=self._settings,
+            exposed_chunk_ids=registry.exposed_chunk_ids,
+            retrieved=registry.retrieved,
+            seed=seed,
+            observations=observations,
+            tool_log=tool_log,
+            steps=steps,
             usage=usage,
+            provider=getattr(self._llm, "name", "unknown"),
+            po_id=_guess_po_id(question, tool_log),
         )
 
 

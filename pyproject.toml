@@ -16,6 +16,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+# Only needed for alternatives/langgraph_agent.py. The main package deliberately
+# does not depend on a framework - see WRITEUP.md.
+langgraph = ["langgraph>=1.0", "langchain-core>=1.0", "langchain-openai>=1.0"]
 
 [project.scripts]
 triage = "triage.cli:main"

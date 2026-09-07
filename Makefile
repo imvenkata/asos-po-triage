@@ -10,6 +10,9 @@ test:
 eval:
 	./.venv/bin/python evals/run_evals.py --json eval_report.json
 
+eval-langgraph:
+	./.venv/bin/python evals/run_evals.py --agent langgraph --json eval_report_langgraph.json
+
 eval-offline:
 	TRIAGE_LLM_PROVIDER=scripted ./.venv/bin/python evals/run_evals.py
 

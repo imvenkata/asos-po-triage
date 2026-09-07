@@ -89,18 +89,22 @@ src/triage/
   agent.py       bounded tool-calling loop + deterministic policy gate
   cli.py api.py  the two interfaces
 evals/           7 behavioural cases, scored runner, threshold calibrator
-tests/           39 unit tests
+alternatives/    the same agent orchestrated with LangGraph, for comparison
+tests/           47 unit tests
 ```
 
 ## Testing
 
 ```bash
-make test            # 39 unit tests, no credentials required
+make test            # 47 unit tests, no credentials required
 make eval-offline    # 6 cases offline; 1 skipped (needs semantic retrieval)
 make eval            # the same cases against the configured live provider
 
 # Re-derive the grounding threshold for your embedding model
 python evals/calibrate_threshold.py
+
+# The same suite through the LangGraph orchestration (see alternatives/)
+make eval-langgraph
 ```
 
 Measured against Azure OpenAI (`gpt-5.6-luna` + `text-embedding-3-small`):

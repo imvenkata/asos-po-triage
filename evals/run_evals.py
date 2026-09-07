@@ -123,6 +123,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run the triage eval suite")
     parser.add_argument("--json", type=Path, help="Write a machine-readable report here")
     parser.add_argument("--case", action="append", help="Run only these case ids")
+    parser.add_argument(
+        "--agent",
+        choices=["handwritten", "langgraph"],
+        default="handwritten",
+        help="Which orchestration to evaluate. Both share the same corpus, tools "
+        "and policy gate; only the loop differs. See alternatives/README.md.",
+    )
     args = parser.parse_args()
 
     setup_logging("ERROR")
@@ -134,7 +141,10 @@ def main() -> int:
             console.print("[red]No matching case ids.[/]")
             return 2
 
-    console.print(f"[bold]Running {len(cases)} eval cases[/]  provider={settings.triage_llm_provider}")
+    console.print(
+        f"[bold]Running {len(cases)} eval cases[/]  provider={settings.triage_llm_provider}"
+        f"  orchestration={args.agent}"
+    )
     if settings.triage_llm_provider == "scripted":
         console.print(
             "[yellow]NOTE:[/] the scripted provider is an offline test double. These "
@@ -143,7 +153,13 @@ def main() -> int:
             "TRIAGE_LLM_PROVIDER=azure to measure the model.\n"
         )
 
-    agent = build_agent(settings)
+    if args.agent == "langgraph":
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "alternatives"))
+        from langgraph_agent import build_langgraph_agent
+
+        agent = build_langgraph_agent(settings)
+    else:
+        agent = build_agent(settings)
     registry = agent.pii_registry
     semantic = agent.semantic_retrieval_available
 
@@ -219,6 +235,7 @@ def main() -> int:
             json.dumps(
                 {
                     "provider": settings.triage_llm_provider,
+                    "orchestration": args.agent,
                     "cases_total": len(cases),
                     "cases_run": ran,
                     "cases_skipped": skipped,

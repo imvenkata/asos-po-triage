@@ -19,6 +19,21 @@ would have hidden the two things worth reviewing here: the tool-calling loop
 itself and the policy gate that wraps it. The provider sits behind a Protocol
 (`llm/base.py`), so swapping to Semantic Kernel or Bedrock is one adapter.
 
+Because "why no framework" is a fair challenge rather than a settled question,
+`alternatives/langgraph_agent.py` is the same agent with the hand-written loop
+replaced by a LangGraph `StateGraph`. Both run the same eval suite
+(`make eval-langgraph`) and both score **7/7, 42/42, 0 safety failures**, with
+identical actions on all seven cases. They import the same `policy_gate.py` —
+a test asserts they resolve to the same function object.
+
+That result is the actual argument: the two orchestrations tie because **the loop
+was never the hard part.** LangGraph replaces ~105 lines and has no opinion about
+whether a citation is real or two SOP sections contradict each other; those 177
+lines get written either way. Where LangGraph would genuinely win here is
+`interrupt_before` — a triage workflow that pauses for planner sign-off is one
+line there and a redesign in the hand-written loop. Full comparison, including
+what it costs, in [alternatives/README.md](alternatives/README.md).
+
 Retrieval is in-memory (NumPy + a hand-written BM25). For 28 chunks, FAISS or
 Chroma would add a dependency and an index-lifecycle problem to solve a scale
 problem that does not exist. `SopIndex` is the seam where Azure AI Search would
