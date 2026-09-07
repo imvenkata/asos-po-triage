@@ -38,11 +38,27 @@ against the policy that was live when it was made.
 
 The destination is Azure AI Search rather than Pinecone or Qdrant - it is native
 to the stack in the role description, does BM25 + vector hybrid with a semantic
-reranker, and keeps SOP and PO data inside the tenancy. `SopIndex` is the seam.
-One caveat on that swap: conflict closure is computed at index-build time over
-the whole corpus, so a remote store means either keeping the corpus locally
-anyway or precomputing the conflict graph offline and storing it as chunk
-metadata. The retrieval call ports cleanly; the invariant needs redesigning.
+reranker, and keeps SOP and PO data inside the tenancy. `SopIndex` is the seam,
+and it is a real one: everything outside `retrieval/` touches seven public
+members and nothing reaches into internals.
+
+Two things do not port cleanly, and both are worth knowing before promising the
+migration is a config change.
+
+**Conflict closure** is computed at index-build time over the whole corpus, so a
+remote store means either keeping the corpus locally anyway or precomputing the
+conflict graph offline and storing it as chunk metadata.
+
+**The grounding gate would break, quietly.** Its floor is calibrated against raw
+cosine from `text-embedding-3-small`, where in-scope questions scored 0.47-0.68
+and out-of-scope 0.08-0.37. Azure AI Search reports a different number depending
+on query mode: hybrid `@search.score` is an **RRF** score - the rank-based value
+this writeup already establishes cannot be thresholded for relevance - and
+vector-only `@search.score` is cosine rescaled to **0.333-1.00**, on which a 0.38
+floor sits near the bottom and passes almost everything. Semantic ranking reports
+`@search.rerankerScore` on 0.00-4.00, a third scale again. Migrating means
+re-deriving the threshold against whichever score the chosen query mode emits,
+not editing a config value.
 
 ---
 
