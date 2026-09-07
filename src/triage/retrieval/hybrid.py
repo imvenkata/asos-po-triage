@@ -4,6 +4,17 @@ RRF over raw score blending because BM25 scores and cosine similarities live on
 incomparable scales; fusing ranks needs no per-corpus weight tuning, which is
 exactly what you want when you cannot yet measure retrieval quality on real
 traffic. score(d) = sum over rankers of 1/(k + rank(d)), k=60 as per Cormack et al.
+
+Why this is not LangChain's EnsembleRetriever, which does the same fusion:
+its `weighted_reciprocal_rank` returns `list[Document]` and discards every
+score - it builds an `rrf_score` dict locally, sorts by it, and drops it. The
+grounding guardrail needs `max(dense_cosine)` over the retrieved set, so
+building on EnsembleRetriever would mean calling the sub-retrievers directly to
+recover the scores, which is this module. (It also now lives in
+`langchain-classic`, so it is two more dependencies rather than something we
+already have.) Keeping the raw component scores through fusion is the whole
+point - discarding them is exactly the bug that made the grounding gate
+unfireable in the first version. See guardrails/grounding.py.
 """
 from __future__ import annotations
 
