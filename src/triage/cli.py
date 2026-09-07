@@ -158,16 +158,36 @@ def cmd_doctor(_: argparse.Namespace) -> int:
         )
     console.print(table)
 
-    try:
-        from .llm.factory import build_llm_client
+    from .llm.factory import build_llm_client
 
+    try:
         client = build_llm_client(settings)
-        reply = client.chat([{"role": "user", "content": "Reply with the single word: ok"}])
-        console.print(f"[green]chat reachable[/] via {client.name}: {(reply.text or '').strip()[:40]}")
     except LLMError as exc:
-        console.print(f"[red]chat unreachable:[/] {exc}")
+        console.print(f"[red]cannot build client:[/] {exc}")
         return 1
-    return 0
+
+    failed = False
+    try:
+        reply = client.chat([{"role": "user", "content": "Reply with the single word: ok"}])
+        console.print(f"[green]✓ chat deployment reachable[/] ({client.name}): {(reply.text or '').strip()[:40]}")
+    except LLMError as exc:
+        console.print(f"[red]✗ chat deployment unreachable:[/] {exc}")
+        failed = True
+
+    # Probed separately: the embedding deployment is the one most often missing,
+    # and without it retrieval drops to lexical-only AND the grounding guardrail
+    # goes inactive. A green chat check alone would hide both.
+    try:
+        vector = client.embed(["connectivity probe"])[0]
+        console.print(f"[green]✓ embedding deployment reachable[/] ({len(vector)} dims)")
+    except LLMError as exc:
+        console.print(f"[yellow]✗ embedding deployment unavailable:[/] {exc}")
+        console.print(
+            "[yellow]  → retrieval will run lexical-only and the grounding "
+            "guardrail will be INACTIVE.[/]"
+        )
+        failed = True
+    return 1 if failed else 0
 
 
 def main(argv: list[str] | None = None) -> int:
