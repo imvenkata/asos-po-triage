@@ -11,6 +11,13 @@ Backorders are permitted only where all of the following hold:
 - PO status is `open` or `partially_received`.
 - The expected delay for the shortfall does not exceed the maximum in §3.
 - The PO `channel` is `retail`.
+- The shortfall is **above the Tier 1 minor band** defined in
+  `variance_detection_sop.md §2`. A shortfall at or below 5% of ordered quantity
+  is not backordered; it is absorbed as a routine variance and the PO is amended
+  in place under `po_amendment_policy.md §2`.
+- The exception is **not Tier 4 Critical**. Where the PO breaches the critical
+  tier on variance or value, it is escalated under `variance_detection_sop.md §2`
+  and no backorder is raised.
 
 ## §2. Channel Restriction
 

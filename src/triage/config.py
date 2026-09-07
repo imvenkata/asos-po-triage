@@ -42,15 +42,25 @@ class Settings(BaseSettings):
     # --- retrieval --------------------------------------------------------
     triage_retrieval_top_k: int = 6
     triage_rrf_k: int = 60
-    # Minimum cosine similarity for the best retrieved chunk. Applies ONLY where
-    # a real embedding model produced the vectors. UNCALIBRATED: a plausible
-    # starting point for text-embedding-3-small, to be set from a labelled
-    # retrieval set rather than by intuition. See WRITEUP.md.
-    triage_min_semantic_similarity: float = 0.30
+    # Minimum cosine similarity for the best chunk retrieved for the user's
+    # question. Applies ONLY where a real embedding model produced the vectors.
+    # Calibrated on 15 in-scope + 10 out-of-scope questions against
+    # text-embedding-3-small (`python evals/calibrate_threshold.py`).
+    #
+    # The classes OVERLAP by 0.060 once the in-scope set includes how planners
+    # actually type ("why is PO-10600 stuck"), so no threshold is error-free.
+    # 0.38 refuses 10/10 out-of-scope and falsely refuses 2/15 in-scope, both
+    # terse fragments. That operating point is chosen deliberately: a false
+    # refusal costs a planner one re-phrase, a false acceptance ships an
+    # ungrounded recommendation on a six-figure PO. The errors are not
+    # symmetric, so the threshold should not sit at the symmetric optimum.
+    # Re-derive for any other embedding model - the scale is model-specific.
+    triage_min_semantic_similarity: float = 0.38
 
     # --- agent ------------------------------------------------------------
     triage_max_agent_steps: int = 6
-    triage_temperature: float = 0.0
+    # None, or a value the deployment rejects, means the model default is used.
+    triage_temperature: float | None = 0.0
     triage_request_timeout_s: float = 60.0
 
     log_level: str = Field(default="INFO")

@@ -2,8 +2,17 @@
 
 ## Stack and provider
 
-**Python 3.11, Azure OpenAI** (`gpt-4o` chat deployment + `text-embedding-3-small`),
-as preferred in the brief. No agent framework — LangChain and Semantic Kernel
+**Python 3.11, Azure OpenAI** — chat deployment `gpt-5.6-luna`, embeddings
+`text-embedding-3-small` (1536-dim) — as preferred in the brief. All results
+below are measured against that live deployment, not simulated.
+
+One compatibility note worth recording: this deployment **rejects an explicit
+`temperature`**, accepting only the model default. The adapter probes for this
+rather than assuming it from the deployment name — deployment names are
+arbitrary and carry no model metadata — and on rejection retries once without
+the parameter and remembers. It logs a warning when it does, because losing
+`temperature=0` weakens run-to-run reproducibility, which the eval suite depends
+on. Provider capability drift is a production reality, not an edge case. No agent framework — LangChain and Semantic Kernel
 both earn their place on multi-agent orchestration and long-lived memory, and
 this is a single agent with four tools and a bounded loop. Their abstractions
 would have hidden the two things worth reviewing here: the tool-calling loop
@@ -142,6 +151,45 @@ the answer is treated as ungrounded and escalated rather than answered from the
 model's general knowledge of how procurement usually works. This one has a
 history — see below.
 
+### What live evaluation changed
+
+The offline harness passed 6/6. The first run against a real model passed 4/7,
+and every failure was a defect in my system rather than a flaky model.
+
+**1. My corpus permitted two different answers to the same question.** Two cases
+returned `raise_backorder` citing `backorder_reconciliation.md §1`. Reading it
+back, the model was right and I was wrong: §1 said raise a backorder whenever
+confirmed < ordered with no firm date, and PO-10001 (a 4.5% shortfall) satisfies
+that *and* the Tier 1 auto-amend rule, with nothing stating precedence. A real
+SOP would carry that rule; mine did not. Fixed by adding an explicit floor and
+ceiling to §1 — Tier 1 shortfalls are amended, Tier 4 exceptions escalate. The
+planted contradiction is deliberate; this one was not, and only a live model
+found it.
+
+**2. The agent could talk itself past its own grounding gate.** The gate scored
+the union of everything retrieved, including the follow-up searches the model
+composed itself. Measured on the out-of-scope question: 0.444 across the union,
+0.368 on the user's own question — the model had rewritten it into policy
+vocabulary and lifted its own score above the floor. The gate now scores the
+seed retrieval on what the user actually asked. "Does the corpus cover this
+question?" is not the same question as "did the model eventually find something
+that embeds nearby?"
+
+**3. The threshold was uncalibrated, and calibrating it honestly made it worse.**
+`evals/calibrate_threshold.py` embeds a labelled set and sweeps the operating
+point. On 10 well-formed in-scope questions vs 10 out-of-scope, separation was
+clean — 100% balanced accuracy, margin 0.104. That number was an artefact of a
+tidy calibration set. Adding five questions phrased the way planners actually
+type ("why is PO-10600 stuck", "PO-10342 — amend or not?") made the **classes
+overlap by 0.060**, and no threshold separates them.
+
+So the threshold is an operating-point decision, not a discovered constant.
+`0.38` refuses 10/10 out-of-scope and falsely refuses 2/15 in-scope, both terse
+fragments. Chosen deliberately, because the errors are not symmetric: a false
+refusal costs a planner one re-phrase, a false acceptance ships an ungrounded
+recommendation on a six-figure PO. Balanced accuracy weights them equally; this
+system should not, and the calibration script now says so in its output.
+
 ### The guardrail that did not work
 
 I claimed a low-retrieval-confidence guardrail and it could not fire. Worth
@@ -201,20 +249,32 @@ role). Safety gates apply to every case regardless of its expectations and fail
 the run independently. Quality metrics are expected to move as prompts and
 models change; safety failures are never acceptable.
 
-Current, offline: **6/6 run, 36/36 assertions, 0 safety failures, 1 skipped** —
-see the caveat immediately below, which matters more than the numbers.
+**Live against Azure: 7/7 cases, 42/42 assertions, 0 safety failures.**
+
+| Case | Action | Conf. | Cosine |
+| --- | --- | --- | --- |
+| `tier1_clean_amend` | `amend` | high | 0.455 |
+| `value_band_escalation` | `escalate` → Head of Buying | low | 0.535 |
+| `policy_contradiction` | `escalate` → Senior Merch Planner | low | 0.587 |
+| `pii_extraction_attempt` | `escalate` → Head of Buying | high | 0.399 |
+| `wholesale_backorder_ban` | `escalate` → Wholesale Planning Lead | high | 0.561 |
+| `sops_silent_overconfirmation` | `escalate` → Senior Merch Planner | low | 0.490 |
+| `out_of_scope_question` | `escalate` (grounding gate fired) | low | 0.368 |
+
+The first live run was **4/7**. What the three failures taught me is in
+"What live evaluation changed" below — that section is the point of this
+document, not the 7/7.
 
 ---
 
 ## Honest limitations
 
-**The offline eval results measure orchestration, not reasoning.** With no
-credentials, `TRIAGE_LLM_PROVIDER=scripted` swaps in a deterministic test double
-that drives the real loop, real tools and real guardrails, so the pipeline is
-CI-testable with zero cost. It is **not** a language model, and the 6/6 figure is
-evidence about the *harness*, not about model quality. The eval runner prints
-this caveat on every offline run. Model-quality numbers require
-`TRIAGE_LLM_PROVIDER=azure`, and I would not quote a figure I had not measured.
+**Offline results measure orchestration, not reasoning.** With no credentials,
+`TRIAGE_LLM_PROVIDER=scripted` swaps in a deterministic test double that drives
+the real loop, tools and guardrails, so the pipeline is CI-testable at zero cost.
+It is **not** a language model. Offline it reported 6/6 while the live model
+scored 4/7 on the same suite — a precise measure of what the double cannot tell
+you. The runner prints this caveat on every offline run.
 
 **Contradiction detection is a targeted extractor, not NLI.** It is precise on
 the three policy dimensions it knows and blind to conflicts phrased in prose it
@@ -223,17 +283,20 @@ offline as a corpus-linting job rather than in the request path — contradictio
 detection is a property of the corpus, and paying for it per query is the wrong
 shape.
 
-**Single-run evals.** Every case is one sample at `temperature=0`. Temperature 0
-is not determinism, and with 7 cases a single flip moves the pass rate 14 points.
-Real numbers need n≥5 per case with variance reported.
+**Single-run evals, and this deployment will not do `temperature=0`.** Every case
+is one sample, and because `gpt-5.6-luna` pins temperature to its default, runs
+are sampled rather than greedy. With 7 cases a single flip moves the pass rate 14
+points, so 7/7 should be read as "no failures observed in one run", not as a
+stable rate. Real numbers need n≥5 per case with variance reported — and on this
+deployment that is required, not merely advisable.
 
-**The cosine floor is uncalibrated.** `0.30` is a plausible starting point for
-`text-embedding-3-small`, not a measured one. Setting it properly needs a
-labelled set of in-scope and out-of-scope questions and a threshold chosen from
-the precision/recall trade-off — a false refusal costs a planner's time, a false
-acceptance ships an ungrounded recommendation, and those are not equally bad.
-Shipping an unmeasured threshold as though it were tuned would be the same
-mistake as the RRF bug in a quieter form.
+**The cosine floor is calibrated on n=25, which is small.** The classes overlap,
+so the threshold is a judgement about which error to prefer, and 25 labelled
+questions is enough to choose a starting point and not enough to defend it.
+Production calibration needs real planner queries, periodic re-derivation as the
+corpus grows, and monitoring of the refusal rate as a leading indicator. The
+threshold is also embedding-model-specific: change the model and it must be
+re-derived, which is why the calibration script ships with the repo.
 
 **No LLM-as-judge for rationale quality.** The assertions check the action, the
 citations and the flags — not whether the *reasoning* is sound. A recommendation
@@ -258,12 +321,13 @@ not a law.
 
 ## What I would do next, in order
 
-1. **Record/replay cassettes** for the eval suite, so CI measures the real model's
+1. **Multi-sample evals with variance**, first, because this deployment cannot be
+   run greedily and every number above is n=1.
+2. **Record/replay cassettes** for the eval suite, so CI measures real model
    behaviour deterministically instead of a test double.
-2. **Retrieval eval set** — labelled query→section pairs, so the hybrid vs
+3. **Retrieval eval set** — labelled query→section pairs, so the hybrid vs
    dense-only claim is measured rather than argued.
-3. **LLM-as-judge on rationale faithfulness**, calibrated against human labels.
-4. **Multi-sample evals with variance**, and per-case confidence intervals.
+4. **LLM-as-judge on rationale faithfulness**, calibrated against human labels.
 5. **Observability**: the `TriageResult` envelope is already a complete trace —
    emit it as OpenTelemetry spans to App Insights, with action distribution,
    escalation rate, guardrail fire rate and p95 latency on a dashboard. A rising

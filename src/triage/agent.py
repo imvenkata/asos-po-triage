@@ -83,7 +83,9 @@ class TriageAgent:
 
         messages = self._initial_messages(question, seed, observations)
         raw, tool_log, steps, usage = self._run_loop(messages, registry)
-        return self._finalise(question, raw, registry, tool_log, steps, usage, observations)
+        return self._finalise(
+            question, raw, registry, tool_log, steps, usage, observations, seed
+        )
 
     def _observations_for(self, question: str) -> dict[str, float] | None:
         po_id = _po_id_from_question(question)
@@ -239,6 +241,7 @@ class TriageAgent:
         steps: int,
         usage: dict[str, int],
         observations: dict[str, float] | None = None,
+        seed: list[RetrievedChunk] | None = None,
     ) -> TriageResult:
         flags: list[GuardrailFlag] = []
         po_id = _guess_po_id(question, tool_log)
@@ -289,8 +292,14 @@ class TriageAgent:
 
         # 2. Grounding - refuse to answer from thin air.
         matched, total = self._index.informative_overlap(question)
+        # Deliberately the SEED retrieval - the search on what the user actually
+        # asked - not registry.retrieved, which accumulates every follow-up query
+        # the model issued. Measured: an out-of-scope question scored 0.444 across
+        # the union but 0.368 on the seed, because the model rewrote it into
+        # policy vocabulary. Scoring the union lets the agent talk itself past its
+        # own grounding gate.
         grounding = assess_grounding(
-            registry.retrieved,
+            seed if seed is not None else registry.retrieved,
             matched,
             total,
             self._index.semantic_scores_meaningful,

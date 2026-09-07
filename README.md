@@ -88,7 +88,7 @@ src/triage/
   tools/         get_po · get_forecast · search_sops · submit_recommendation
   agent.py       bounded tool-calling loop + deterministic policy gate
   cli.py api.py  the two interfaces
-evals/           7 behavioural cases + scored runner
+evals/           7 behavioural cases, scored runner, threshold calibrator
 tests/           39 unit tests
 ```
 
@@ -98,7 +98,14 @@ tests/           39 unit tests
 make test            # 39 unit tests, no credentials required
 make eval-offline    # 6 cases offline; 1 skipped (needs semantic retrieval)
 make eval            # the same cases against the configured live provider
+
+# Re-derive the grounding threshold for your embedding model
+python evals/calibrate_threshold.py
 ```
+
+Measured against Azure OpenAI (`gpt-5.6-luna` + `text-embedding-3-small`):
+**7/7 cases, 42/42 assertions, 0 safety failures.** The first live run was 4/7 —
+see [WRITEUP.md](WRITEUP.md#what-live-evaluation-changed).
 
 One case (`out_of_scope_question`) exercises the grounding guardrail, which
 requires a real embedding model. Offline it is reported as **skipped**, never as
@@ -120,5 +127,5 @@ directly. See `.env.example` for the full list. The ones that matter:
 | `AZURE_OPENAI_CHAT_DEPLOYMENT` | `gpt-4o` | Chat deployment name |
 | `AZURE_OPENAI_EMBEDDING_DEPLOYMENT` | unset | Omit and retrieval runs lexical-only, loudly |
 | `TRIAGE_RETRIEVAL_TOP_K` | `6` | Before conflict closure |
-| `TRIAGE_MIN_SEMANTIC_SIMILARITY` | `0.30` | Cosine floor for grounding. Needs a real embedding model; uncalibrated |
+| `TRIAGE_MIN_SEMANTIC_SIMILARITY` | `0.38` | Cosine floor for grounding. Needs a real embedding model; calibrated via `evals/calibrate_threshold.py` |
 | `TRIAGE_MAX_AGENT_STEPS` | `6` | Hard ceiling on the tool-calling loop |
