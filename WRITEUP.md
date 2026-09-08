@@ -428,10 +428,3 @@ about, since the brief says you will probe this:
 - **I removed more generated code than I kept.** Record/replay cassettes, a
   re-ranker and a caching layer were all scoped out — the brief asks for
   must-haves finished cleanly, and unused abstraction is a cost, not a hedge.
-
-## Time
-
-<!-- TODO: replace with your actual figure before submitting. -->
-Roughly the brief's window, with the largest single block spent not on the happy
-path but on the three guardrail defects above — which is, I think, where the time
-should go on a system whose whole purpose is to know when to stop.
