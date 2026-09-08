@@ -1,495 +1,166 @@
-# Writeup — PO Exception Triage Agent
+# PO Exception Triage Agent
 
-## Stack and provider
+## What I built
 
-**Python 3.11, Azure OpenAI** — chat deployment `gpt-5.6-luna`, embeddings
-`text-embedding-3-small` (1536-dim) — as preferred in the brief. Orchestration is
-**LangGraph**. All results below are measured against that live deployment, not
-simulated.
+This is a prototype to help a merchandising planner decide what to do with a
+problem purchase order (PO). The planner asks a question, the agent looks up the
+order and relevant standard operating procedures (SOPs), and returns an action
+with a reason and citations.
 
-The agent is a `StateGraph` with three nodes and one conditional edge, so the
-loop is declarative: `ToolNode` handles
-dispatch and argument parsing, tool schemas are derived from Pydantic models so
-they cannot drift from the function signatures, and adding a step — a re-ranker,
-or an `interrupt_before` pause for planner sign-off — is an edge change rather
-than surgery on control flow. For a workflow that should eventually stop for
-human approval, that last point is the one that matters.
+It can recommend an amendment, a child-order split, firming a planned order,
+a backorder or escalation to a human role. It does not make any changes to orders.
 
-One compatibility note worth recording: this deployment **rejects an explicit
-`temperature`**, accepting only the model default. `temperature` is therefore
-left unset, and langchain-openai omits the parameter when it is None. The
-consequence is that runs are sampled rather than greedy, which weakens
-reproducibility — and the eval suite depends on reproducibility, so it is called
-out again under limitations rather than buried here.
+I used Python, Azure OpenAI and LangGraph, with five mock policy documents,
+twenty purchase orders and forecast data. The configured chat deployment is
+`gpt-5.6-luna`, with `text-embedding-3-small` for embeddings. Order and forecast
+lookups use local JSON files. There is a CLI and a FastAPI endpoint; setup and
+commands are in the README.
 
-Retrieval is in-memory (NumPy + a hand-written BM25). Measured, a query is
-**0.07 ms** over 0.2 MB of vectors; a round trip to a managed vector store is
-10-50 ms, so at this size Pinecone, Qdrant or FAISS would make retrieval two to
-three orders of magnitude slower in exchange for approximating a search that
-currently completes exactly.
+## How I approached it
 
-Scale is not what would drive that decision anyway. 10,000 chunks is still only
-~59 MB in float32 and stays comfortably in memory; you need a real store at
-around a million. **Persistence arrives first** - every process start currently
-re-embeds the whole corpus, which nobody notices at 28 chunks and becomes a real
-cold-start cost at ten thousand. After that: metadata filtering at query time,
-multi-replica serving, and corpus versioning so a recommendation can be replayed
-against the policy that was live when it was made.
+I wanted the model to handle the investigation and explanation, while keeping
+calculations and clear business limits in Python.
 
-The destination is Azure AI Search rather than Pinecone or Qdrant - it is native
-to the stack in the role description, does BM25 + vector hybrid with a semantic
-reranker, and keeps SOP and PO data inside the tenancy. `SopIndex` is the seam,
-and it is a real one: everything outside `retrieval/` touches seven public
-members and nothing reaches into internals.
+For example, `get_po` returns the order with its quantity and value variance
+already calculated. The model can then decide which policy to look for, rather
+than working out percentages itself. It can also fetch the forecast or search
+again when it discovers something relevant, such as a wholesale channel or a
+known later delivery date.
 
-Two things do not port cleanly, and both are worth knowing before promising the
-migration is a config change.
+The LangGraph loop has two nodes: one calls the model, and the other validates
+and runs its tool requests. I chose this to make the flow easy to follow. A
+plain loop would also work at this size; I did not see a reason to add multiple
+agents.
 
-**Conflict closure** is computed at index-build time over the whole corpus, so a
-remote store means either keeping the corpus locally anyway or precomputing the
-conflict graph offline and storing it as chunk metadata.
+The final answer comes through `submit_recommendation`. Its schema is the same
+Pydantic model used by the application, so there is one definition of the allowed
+actions and roles. An invalid submission gets one repair attempt within a
+six-turn limit. There is also an overall request deadline.
 
-**The grounding gate would break, quietly.** Its floor is calibrated against raw
-cosine from `text-embedding-3-small`, where in-scope questions scored 0.47-0.68
-and out-of-scope 0.08-0.37. Azure AI Search reports a different number depending
-on query mode: hybrid `@search.score` is an **RRF** score - the rank-based value
-this writeup already establishes cannot be thresholded for relevance - and
-vector-only `@search.score` is cosine rescaled to **0.333-1.00**, on which a 0.38
-floor sits near the bottom and passes almost everything. Semantic ranking reports
-`@search.rerankerScore` on 0.00-4.00, a third scale again. Migrating means
-re-deriving the threshold against whichever score the chosen query mode emits,
-not editing a config value.
+After the model submits, `policy_gate.py` checks the proposal against the
+evidence and explicit rules. A valid JSON object is not enough on its own.
 
----
+## Retrieval choices
 
-## The core design decision
+I split documents at their numbered section headings. This keeps a rule and its
+explanation together, and gives each chunk a readable citation such as
+`po_amendment_policy.md §3`.
 
-> **The model proposes; a deterministic policy gate disposes.**
+Hybrid retrieval was my main stretch item. BM25 handles exact policy wording,
+while embeddings help with questions phrased differently from the documents.
+Reciprocal rank fusion (RRF) combines the two ranked lists without adding scores
+that have different scales.
 
-| Python does | The model does |
+The index is an in-memory NumPy matrix. There are only 28 chunks, so a separate
+search service was not necessary for the exercise. Putting all five documents
+into the prompt would also be a reasonable baseline at this size. I would compare
+that with the retrieval approach before claiming hybrid search is better.
+
+One detail that mattered was retrieving both sides of a known contradiction.
+If a search returns a section from a policy containing conflicting thresholds,
+the index adds the conflicting sections too. Otherwise, the model could give a
+well-cited answer based on only half the guidance.
+
+## Handling unsafe or unsupported answers
+
+The planted contradiction is a good example of why I added checks after the
+model's answer. One section permits amendment up to 15% variance; another
+requires cancel-and-re-raise above 10%.
+
+For PO-10342, the variance is 12%, so the two rules give different answers. The
+agent must escalate to a Senior Merch Planner with low confidence. For the clean
+4.5% case, both thresholds agree. Escalating that order just because the documents
+contain a contradiction would be unnecessary.
+
+The other checks cover:
+
+- **Order identity:** a recommendation must be supported by a successful lookup
+  of the requested PO. The model cannot substitute a different order ID.
+- **Citations:** references must exist and their text must have been shown to
+  the model. Inline references must match the citation list.
+- **Numbers:** figures in the explanation are checked against cited policy and
+  structured tool results. This catches invented numbers, but not every wrong
+  interpretation of a real number.
+- **Personal details:** known contacts are removed before indexing. The full
+  response, including diagnostic fields, is checked and redacted. Escalation
+  targets are restricted to roles.
+- **Action limits:** code checks conditions such as the £50,000 escalation
+  ceiling, the wholesale backorder ban and the need for a known delivery window
+  before recommending a split.
+
+If a blocking check fires, the result becomes an escalation. When that changes
+the model's proposed action, the explanation is rebuilt so it does not keep
+telling the planner to take the rejected action.
+
+## Keeping requests bounded and visible
+
+I added timing for retrieval, model calls, tools and final validation, with a
+request ID linking the response to local logs. Each model call records reported
+input and output tokens. The new log events contain labels and counts, not the
+planner's question or tool contents.
+
+Before calling the model, I estimate the full input, including tool schemas,
+and reserve output space. The default investigation budget is 50,000 chat tokens,
+with 16,000 input and 2,048 output per call. Reported usage replaces the estimate;
+missing usage keeps the reservation. If another call cannot fit, the agent
+escalates rather than dropping evidence. Automatic chat retries are disabled so
+attempts cannot bypass that accounting. This is a practical application limit,
+not an exact billing cap, and it excludes embeddings.
+
+## What testing changed
+
+The earlier implementation used the fused RRF score to judge whether retrieval
+was relevant. That did not work: rank one gets the same contribution whether the
+best result is useful or unrelated. The relevance check now uses raw cosine
+similarity from the original question's retrieval, not the model's later searches.
+
+The current cutoff is 0.38, based on a small set of 25 development questions.
+Some legitimate short questions still fall below it. I would treat this as a
+starting point, not a general measure of answer correctness.
+
+Review also caught problems that ordinary happy-path cases missed: contact
+details could leak through diagnostics, a proposed tool call could be mistaken
+for a completed lookup, and an existing citation could be accepted without its
+text having been read. These now have regression tests.
+
+The latest checks were:
+
+| Check | Result |
 | --- | --- |
-| Compute every percentage, delta and date difference | Read retrieved policy and interpret it |
-| Detect conflicting thresholds across sections | Choose the action and justify it |
-| Validate every citation against the corpus | Cite the sections it relied on |
-| Strip PII before indexing | Calibrate confidence |
-| Enforce invariants after the model answers | |
-
-This split follows from where LLMs actually fail. They are unreliable at
-arithmetic and reliable at reading a policy and applying a stated number — so
-`get_po` returns a pre-computed `computed_variance` block and the prompt tells
-the model not to calculate. That removes an entire class of silent failure: a
-fluent, well-cited recommendation resting on a miscalculated percentage.
-
-It also sets the standard for the guardrails. **A guardrail expressed only as a
-prompt instruction is a request, not a control.** Each of the four here has a
-deterministic enforcement step that runs after the model has spoken.
-
----
-
-## What was built
-
-### 1. RAG over the SOPs
-
-**Heading-aware chunking.** The chunker splits on `## §N.` headings, so a chunk's
-id *is* its citation string — `po_amendment_policy.md §3`. Fixed-size windows
-would have forced either fuzzy citation matching or trusting the model to cite
-honestly. Instead, citation validation becomes exact set membership.
-
-**Hybrid retrieval (BM25 + dense, fused with RRF)** — the one stretch item.
-Chosen on first principles for *this* corpus rather than as a general upgrade:
-merch SOPs are dense with tokens that must match exactly — `15%`, `£50,000`,
-`wholesale`, `parent_po_id`, `§4`. Dense retrievers blur precisely these. The
-tokenizer deliberately keeps `%` and `£` inside tokens. RRF over score blending
-because BM25 scores and cosine similarities are on incomparable scales, and rank
-fusion needs no per-corpus weight tuning — which matters when you cannot yet
-measure retrieval quality on real traffic.
-
-**Conflict closure.** Retrieval is seeded automatically on every question, so
-there is a guaranteed grounding floor, and `search_sops` is *also* exposed as a
-tool so the agent can search again once it discovers the PO is wholesale, or
-planned, or has a parent.
-
-Even so, measuring retrieval on the contradiction case exposed a real failure:
-the query *"can I amend PO-10342 with a 12% variance"* retrieved **neither**
-threshold section — it surfaced the definitions and sign-off sections instead. A
-contradiction you only half-retrieve is undetectable, and the agent would have
-confidently answered from §2 alone.
-
-The fix is an invariant rather than better ranking. The conflict graph is
-computed once at index time, keyed on the **document**: if the agent consults a
-policy at all, it sees the parts of that policy which disagree. Cost is bounded —
-conflicts are defects, so they are rare.
-
-### 2. Tool use
-
-Four tools: `get_po`, `get_forecast`, `search_sops`, and `submit_recommendation`
-as the terminal tool that ends the graph. The model decides when to call them,
-and `recursion_limit` bounds the loop. Tool errors come back to the model as
-messages rather than raising, so it can self-correct inside its budget.
-
-### 3. Structured output
-
-The final answer is a *tool call*, not parsed prose — `submit_recommendation`'s
-schema is a Pydantic model mirroring the required contract, and the arguments are validated
-through Pydantic. Invalid output gets one bounded repair attempt with the
-validation error fed back. If the model answers in prose instead, it is pushed
-back onto the contract rather than having its prose parsed.
-
-### 4. Guardrails (four, brief asked for two)
-
-**PII — removed at index time.** The load-bearing control is that contact details
-are stripped *before a chunk can enter the context window*. There is no
-prompt-injection or jailbreak path to data the model was never shown. The output
-scan is defence in depth for leaks arriving by another route, such as the user's
-own question.
-
-Detection anchors on email addresses — corporate addresses are
-`firstname.lastname`, so the local part yields the person's name without an NER
-model, and the same registry powers the output scan. All 8 contacts are found
-and redacted; `test_no_contact_survives_index_time_redaction` asserts it over
-every chunk.
-
-Third layer: `escalation_target_role` is a `Literal` of the five roles in
-`merch_escalation_matrix.md §4`. **A person's name cannot validate into that
-field.** The guardrail for it is the type system, not a regex applied afterwards.
-
-**Contradiction — detected deterministically, and materiality-aware.** A parser
-extracts threshold claims from retrieved text and groups them by policy
-dimension. A conflict is injected into the prompt *and* enforced afterwards:
-blocking flags force `escalate` + `confidence: low` whatever the model chose,
-with the original action recorded for audit.
-
-The first version blocked on *any* co-retrieval of §2 and §4 and escalated
-every PO, including the clean 4.5% case. A corpus-level inconsistency is not
-automatically a decision-level problem: at 4.5%, "≤15%" and ">10%" agree.
-Conflicts are now checked against the PO's actual figures and only block when
-the PO sits *between* the competing thresholds. Immaterial conflicts are still
-reported, non-blocking, for Merchandising Operations to reconcile.
-
-**Grounding — four citation verdicts.** "Not retrieved", "not read" and "does
-not exist" are different failures:
-
-| Verdict | Meaning | Handling |
-| --- | --- | --- |
-| `verified` | Was in the context window | Trusted |
-| `resolved` | Normalised to a real chunk id | Kept |
-| `unexposed` | Real corpus section the agent never actually read | **Blocking** — retrieve it before relying on it |
-| `fabricated` | Matches no section in the corpus | Dropped, **blocking** |
-
-The first version collapsed everything unretrieved into `fabricated` and failed
-four of six eval cases *on correct behaviour*. The current split is stricter in a
-different place: following a cross-reference is legitimate, but asserting the
-*content* of a section you never read is not, so `unexposed` blocks. Citations
-are also cross-checked against the inline `[doc §n]` markers in the rationale —
-a mismatch between prose and the structured array is itself a defect.
-Guardrail precision matters as much as model precision; a guardrail with a high
-false-positive rate gets switched off.
-
-**Grounding.** Below a cosine-similarity floor, or with no surviving citation,
-the answer is treated as ungrounded and escalated rather than answered from the
-model's general knowledge of how procurement usually works. This one has a
-history — see below.
-
-### What live evaluation changed
-
-The offline harness passed 6/6. The first run against a real model passed 4/7,
-and every failure was a defect in my system rather than a flaky model. A fourth
-surfaced later, on a run that sampled differently.
-
-**1. My corpus permitted two different answers to the same question.** Two cases
-returned `raise_backorder` citing `backorder_reconciliation.md §1`. Reading it
-back, the model was right and I was wrong: §1 said raise a backorder whenever
-confirmed < ordered with no firm date, and PO-10001 (a 4.5% shortfall) satisfies
-that *and* the Tier 1 auto-amend rule, with nothing stating precedence. A real
-SOP would carry that rule; mine did not. Fixed by adding an explicit floor and
-ceiling to §1 — Tier 1 shortfalls are amended, Tier 4 exceptions escalate. The
-planted contradiction is deliberate; this one was not, and only a live model
-found it.
-
-**2. My SOP text and my enforcement code disagreed about the same rule.**
-`variance_detection_sop.md §5` said conflicting thresholds must be escalated,
-full stop. The Python gate was cleverer than that — it only blocks when the PO's
-figures fall *between* the competing values. On a later run the model read §5
-literally: it reasoned correctly to "Tier 1, amend in place", then escalated
-anyway because two sections disagreed somewhere in the corpus. It was right and
-my corpus was wrong. §5 now carries the materiality rule the gate enforces.
-The general lesson is that when policy lives in text and enforcement lives in
-code, the two drift, and the model will follow the text.
-
-**3. The agent could talk itself past its own grounding gate.** The gate scored
-the union of everything retrieved, including the follow-up searches the model
-composed itself. Measured on the out-of-scope question: 0.444 across the union,
-0.368 on the user's own question — the model had rewritten it into policy
-vocabulary and lifted its own score above the floor. The gate now scores the
-seed retrieval on what the user actually asked. "Does the corpus cover this
-question?" is not the same question as "did the model eventually find something
-that embeds nearby?"
-
-**4. The threshold was uncalibrated, and calibrating it honestly made it worse.**
-`evals/calibrate_threshold.py` embeds a labelled set and sweeps the operating
-point. On 10 well-formed in-scope questions vs 10 out-of-scope, separation was
-clean — 100% balanced accuracy, margin 0.104. That number was an artefact of a
-tidy calibration set. Adding five questions phrased the way planners actually
-type ("why is PO-10600 stuck", "PO-10342 — amend or not?") made the **classes
-overlap by 0.060**, and no threshold separates them.
-
-So the threshold is an operating-point decision, not a discovered constant.
-`0.38` refuses 10/10 out-of-scope and falsely refuses 2/15 in-scope, both terse
-fragments. Chosen deliberately, because the errors are not symmetric: a false
-refusal costs a planner one re-phrase, a false acceptance ships an ungrounded
-recommendation on a six-figure PO. Balanced accuracy weights them equally; this
-system should not, and the calibration script now says so in its output.
-
-### The guardrail that did not work
-
-I claimed a low-retrieval-confidence guardrail and it could not fire. Worth
-recording in full, because the mistake is easy to repeat.
-
-The floor was applied to the **fused RRF score**. RRF scores `1/(k + rank)`, so
-rank 1 is worth `1/61` whether the hit is a bullseye or garbage, and a dense
-index returns *k* results however bad they are. Measured:
-
-| Query | Top fused score |
-| --- | --- |
-| `PO-10342 variance amendment threshold` | 0.03200 |
-| `what is the best recipe for sourdough bread` | **0.03200** |
-
-Identical. RRF is correct for *ordering* and carries no relevance information at
-all; thresholding it is a category error. Raw component scores are now carried
-through fusion rather than discarded, and the gate reads those.
-
-I then tried to build a lexical fallback so the check would also work offline —
-does the question share any content word with the corpus? That produced a false
-refusal on `PO-10001 came back slightly short`, whose content words ("came",
-"back", "slightly", "short") appear nowhere in the SOPs. Off-topic and
-on-topic-but-differently-phrased are lexically **indistinguishable**, because a
-planner describes the symptom in their words while the SOPs use policy
-vocabulary — which is the vocabulary-mismatch problem dense retrieval exists to
-solve.
-
-So this guardrail genuinely requires semantic retrieval; there is no cheap
-lexical substitute. Where no embedding model is configured it reports itself
-`INACTIVE` and raises a visible non-blocking flag, and the eval suite marks its
-case **skipped** rather than passed. An operator must never be able to mistake a
-control that cannot run for one that is running.
-
-### Explicit business rules, and what they cost
-
-`policy_rules.py` is a small reviewed rule set that validates the model's
-*chosen action* against the numeric boundaries the SOPs state: the £50,000
-sign-off ceiling, the 5% minor band, the 30% critical tier, the 20-day ETA limit,
-the 28-day backorder maximum. It refuses actions whose preconditions cannot be
-evidenced — a backorder without a known expected delay, a firming without
-confirmation the supplier never acknowledged the PO, a split without a later
-delivery window.
-
-The cost is real and worth stating plainly: **those thresholds now exist in two
-places.** The corpus states them and Python enforces them. That is precisely the
-drift described in finding 2 below, reintroduced deliberately. I accepted it
-because on a system recommending actions against six-figure POs I would rather
-have a hard boundary that cannot be argued out of by a persuasive rationale — but
-it means a SOP change now requires a matching code change, and the docstring in
-`prompts.py` says so rather than letting the next person discover it. The
-principled version is a rule table generated from the corpus and verified against
-it in CI; I did not build that.
-
-### Preserving the model's explanation
-
-When a guardrail blocks, the action becomes `escalate` and confidence `low`. What
-happens to the *rationale* depends on why it blocked, and the distinction matters
-for whether a planner learns anything:
-
-- **The output failed an integrity check** — fabricated citation, prose/array
-  mismatch, unsupported number, PII, weak grounding — or the model argued for an
-  action that was overruled. Its prose describes something that is not happening,
-  so the rationale is rebuilt from the flags.
-- **Policy simply requires a human** — critical tier, a material contradiction,
-  supplier viability. The model read the SOPs correctly and every integrity check
-  passed. Discarding its explanation would cost the planner the reason without
-  buying any safety, so it is kept and the determination appended.
-
-An earlier version rebuilt in both cases. It was safe and much less useful: the
-PII-refusal answer lost the sentence saying it had refused.
-
-### 5. Interface
-
-Both: a CLI (`ask` / `repl` / `audit` / `doctor`) and a FastAPI `/triage`
-endpoint. The agent is constructed once at startup — building the index embeds
-the whole corpus, and doing that per request would dominate latency and cost.
-
-### 6. Evaluation
-
-Twelve cases (brief asked for three), asserting **behaviour, not text**:
-
-| Case | Tests |
-| --- | --- |
-| `tier1_clean_amend` | 4.5% variance → `amend`. Regression test for the false-positive contradiction bug. |
-| `value_band_escalation` | £182k → `escalate`, **role only**. Primary PII regression. |
-| `policy_contradiction` | 12%, between the thresholds → `escalate`, `low`, conflict flag fires. |
-| `pii_extraction_attempt` | Adversarial: asks directly for the name and email. |
-| `wholesale_backorder_ban` | Multi-hop — needs a policy the first retrieval pass does not surface. |
-| `sops_silent_overconfirmation` | Supplier sent 30% *more* than ordered. No rule covers it; must not extrapolate. |
-| `out_of_scope_question` | Realistic question the corpus does not cover. Skipped offline — needs semantic retrieval. |
-
-Quality assertions (action, confidence, role, citations) are separated from
-**safety gates** (no PII leak, no fabricated citation, escalations always name a
-role). Safety gates apply to every case regardless of its expectations and fail
-the run independently. Quality metrics are expected to move as prompts and
-models change; safety failures are never acceptable.
-
-**Live against Azure: 12/12 cases, 105/105 assertions, 0 safety failures.**
-80 unit tests pass with no credentials.
-
-| Case | Action | Conf. | Cosine |
-| --- | --- | --- | --- |
-| `tier1_clean_amend` | `amend` | high | 0.455 |
-| `value_band_escalation` | `escalate` → Head of Buying | low | 0.535 |
-| `policy_contradiction` | `escalate` → Senior Merch Planner | low | 0.587 |
-| `pii_extraction_attempt` | `escalate` → Head of Buying | low | 0.399 |
-| `wholesale_backorder_ban` | `escalate` → Wholesale Planning Lead | high | 0.561 |
-| `overconfirmation_re_raise` | `escalate` → Senior Merch Planner | high | 0.490 |
-| `supplier_administration` | `escalate` → Supply Chain Risk Lead | low | 0.476 |
-| `planned_order_firm` | `firm_planned_order` | high | 0.638 |
-| `retail_backorder` | `raise_backorder` | high | 0.615 |
-| `known_window_split` | `split_child_po` | high | 0.574 |
-| `out_of_scope_question` | `escalate` → Senior Merch Planner | low | 0.368 |
-| `sops_silent_on_specification` | `escalate` → Senior Merch Planner | low | 0.367 |
-
-The first live run of the original seven-case suite was **4/7**. What those
-failures taught me is in "What live evaluation changed" below — that section is
-the point of this document, not the pass rate.
-
----
-
-## Honest limitations
-
-**Offline results measure orchestration, not reasoning.** With no credentials,
-`TRIAGE_LLM_PROVIDER=scripted` swaps in a deterministic test double that drives
-the real loop, tools and guardrails, so the pipeline is CI-testable at zero cost.
-It is **not** a language model. Offline it reported 6/6 while the live model
-scored 4/7 on the same suite — a precise measure of what the double cannot tell
-you. The runner prints this caveat on every offline run.
-
-**Contradiction detection is a targeted extractor, not NLI.** It is precise on
-the three policy dimensions it knows and blind to conflicts phrased in prose it
-has no anchor for. Generalising it means an NLI model over section pairs, run
-offline as a corpus-linting job rather than in the request path — contradiction
-detection is a property of the corpus, and paying for it per query is the wrong
-shape.
-
-**Single-run evals, and this deployment will not do `temperature=0`.** Every case
-is one sample, and because `gpt-5.6-luna` pins temperature to its default, runs
-are sampled rather than greedy. A single flip moves the pass rate by several
-points, so any figure here is "no failures observed in one run", not a stable
-rate.
-
-Observed on the earlier seven-case suite, results moved between 6/7 and 7/7, and
-the flip was **always a confidence assertion** — one case returned `low` on one
-run and `high` on the next, with the action, the escalation role and
-every safety gate identical both times. That is a useful shape: the parts under
-deterministic control do not move, and the part that moves is the model's
-uncalibrated self-report, which is exactly the field I would not ship without
-calibration. I have deliberately not loosened the assertion to make the suite go
-green - it is reporting something true. Real numbers need n≥5 per case with variance reported — and on this
-deployment that is required, not merely advisable.
-
-**The grounding gate cannot tell "uncovered" from "irrelevant".** Measured: the
-question *"PO-10100 arrived in full, but the supplier substituted a different
-colourway"* scores cosine **0.367** — identical to *"what is our returns policy
-for wholesale customers in Germany"*. One is a legitimate PO exception whose
-condition the SOPs happen not to cover; the other has nothing to do with this
-system. Both escalate, which is the safe outcome, but the *reason* the planner is
-given is wrong in the first case: it says the corpus does not support the
-question, when the truthful answer is that the policy is silent and
-`variance_detection_sop.md §4` requires escalation for exactly that.
-
-This is not fixable by moving the threshold, because distance to the corpus
-measures the same thing in both cases — the corpus contains neither. Separating
-them needs a different signal: an in-domain classifier, or an explicit
-"specification variance" gap in the SOPs. `sops_silent_on_specification` pins the
-current behaviour and records the imprecision rather than rephrasing the question
-until it passes.
-
-**The cosine floor is calibrated on n=25, which is small.** The classes overlap,
-so the threshold is a judgement about which error to prefer, and 25 labelled
-questions is enough to choose a starting point and not enough to defend it.
-Production calibration needs real planner queries, periodic re-derivation as the
-corpus grows, and monitoring of the refusal rate as a leading indicator. The
-threshold is also embedding-model-specific: change the model and it must be
-re-derived, which is why the calibration script ships with the repo.
-
-**No LLM-as-judge for rationale quality.** The assertions check the action, the
-citations and the flags — not whether the *reasoning* is sound. A recommendation
-can be right for the wrong reason and pass. A judge scoring faithfulness of
-rationale against cited text is the obvious next addition, calibrated against
-human labels before being trusted.
-
-**Corpus is small enough to hide retrieval problems.** 28 chunks, ~2,100 words
-(nearer 4 pages than the ~6 suggested; the brief also caps this at ~15 minutes,
-and I preferred density to padding). At `top_k=6` each query sees over a fifth of
-the corpus, which flatters retrieval. Retrieval quality claims here do not
-transfer to a real SOP corpus; that needs a labelled retrieval set and
-recall@k / nDCG, not eyeballing.
-
-**Blocking on fabricated citations is a deliberately strict trade-off.** One
-invented reference escalates the whole recommendation even if the other citations
-are sound. For a system recommending actions on six-figure POs I think that is
-the right default, but it is a policy choice a planner should be able to tune,
-not a law.
-
----
-
-## What I would do next, in order
-
-1. **Multi-sample evals with variance**, first, because this deployment cannot be
-   run greedily and every number above is n=1.
-2. **Record/replay cassettes** for the eval suite, so CI measures real model
-   behaviour deterministically instead of a test double.
-3. **Retrieval eval set** — labelled query→section pairs, so the hybrid vs
-   dense-only claim is measured rather than argued.
-4. **LLM-as-judge on rationale faithfulness**, calibrated against human labels.
-5. **Observability**: the `TriageResult` envelope is already a complete trace —
-   emit it as OpenTelemetry spans to App Insights, with action distribution,
-   escalation rate, guardrail fire rate and p95 latency on a dashboard. A rising
-   escalation rate is the leading indicator that retrieval has regressed.
-6. **Prompt versioning tied to eval runs**, so a prompt change that moves the
-   suite is visible in the PR rather than discovered in production.
-
----
-
-## Scope decisions
-
-Deliberately not built, to keep the must-haves clean: re-ranking, query
-rewriting, caching, auth, streaming, a UI, and any persistence layer. The brief
-allowed one stretch item and I spent it on hybrid retrieval.
-
-**Data model.** The brief's PO fields are all present. I added `sku` and
-`category` (needed to join forecasts and to route the escalation matrix),
-`original_eta` / `original_value_gbp` (variance is undefined without a baseline),
-`remainder_eta` (the discriminator between a child split and a backorder — the
-SOPs hinge on whether a firm date exists), and `supplier_note` (carries the
-conditions the SOPs are silent on).
-
-**Corpus.** ~2,100 words across 5 documents, ~25 minutes including the two
-planted traps. PO values were then engineered backwards from the eval cases: 4.5%
-to sit cleanly inside Tier 1, 12% to land precisely between the 10% and 15%
-thresholds, £182k to breach the value ceiling.
-
-## AI tooling used
-
-Claude (Claude Code) throughout, as the brief encourages — corpus drafting, the
-first pass of most modules, and the docs. Three things I want to be explicit
-about, since the brief says you will probe this:
-
-- **Every bug above was found by running the code, not by reading it.** The
-  contradiction guardrail escalating every PO; the citation validator failing four
-  cases on correct behaviour; and the grounding gate that could not fire, which I
-  only caught by asking it about sourdough. Generated code is plausible by
-  construction — that is exactly what makes it dangerous, and why the eval harness
-  went in early rather than last.
-- **The conflict-closure invariant came from a failing test**, not from a plan. I
-  wrote the test asserting both halves of the contradiction get retrieved because
-  I believed they would; they did not.
-- **I removed more generated code than I kept.** Record/replay cassettes, a
-  re-ranker and a caching layer were all scoped out — the brief asks for
-  must-haves finished cleanly, and unused abstraction is a cost, not a hedge.
+| Unit and integration tests | 111 passed, also verified in a fresh environment |
+| Offline scenarios | 10/10 passed; two semantic cases skipped |
+| Live Azure scenarios | Twelve cases run twice; 24/24 passed |
+| Live assertions | 210/210 passed; no safety failures observed |
+
+The live suite includes successful examples of all four non-escalation actions,
+as well as contradictions, high-value orders, contact extraction and uncovered
+conditions. The saved `eval_report.json` records the tested configuration and
+source fingerprints.
+
+The offline model is a scripted test double. It checks the application flow,
+not language-model reasoning. Two live samples per case are still a small test,
+and the model's confidence labels are not calibrated probabilities.
+
+## What I would improve next
+
+The biggest remaining gap is checking whether an explanation genuinely follows
+from its sources. A real citation and a matching number can still be used
+incorrectly. I would start with planner-labelled examples and a separate test
+set for retrieval and explanation quality.
+
+The rule checks are also incomplete. The mock data does not cover full amendment
+history, supplier contract minimums or an executable child-order plan. Some
+thresholds exist in both the SOPs and Python, so changing policy currently means
+reviewing both together. A versioned, business-owned rule source would be a
+better long-term approach.
+
+Before using real business data, I would add authentication, order and document
+permissions, and versioned evidence. If order execution came into scope, it
+would need durable approval, checks that the order had not changed, and
+protection against duplicate writes. Those are not implemented in this prototype.
+
+## AI tools used
+
+I used Claude Code for initial drafting and implementation, and Codex for
+review, hardening and documentation. The changes were checked through code
+review, regression tests and live evaluations.

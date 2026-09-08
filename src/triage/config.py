@@ -3,6 +3,7 @@
 Nothing in this codebase reads os.environ directly; everything goes through
 Settings so that configuration is discoverable, typed, and overridable in tests.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -18,9 +19,7 @@ Provider = Literal["azure", "openai", "scripted"]
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # --- provider ---------------------------------------------------------
     triage_llm_provider: Provider = "azure"
@@ -57,7 +56,7 @@ class Settings(BaseSettings):
     # ungrounded recommendation on a six-figure PO. The errors are not
     # symmetric, so the threshold should not sit at the symmetric optimum.
     # Re-derive for any other embedding model - the scale is model-specific.
-    triage_min_semantic_similarity: float = 0.38
+    triage_min_semantic_similarity: float = Field(default=0.38, ge=-1, le=1)
 
     # --- agent ------------------------------------------------------------
     triage_max_agent_steps: int = Field(default=6, ge=1, le=20)
@@ -65,6 +64,11 @@ class Settings(BaseSettings):
     triage_total_timeout_s: float = Field(default=120.0, gt=0, le=600)
     triage_max_context_chunks: int = Field(default=28, ge=1, le=200)
     triage_max_tool_calls_per_turn: int = Field(default=4, ge=1, le=8)
+    # Chat only: estimates admit calls; provider usage settles the reservation.
+    # These are application controls, not an exact provider billing ceiling.
+    triage_max_total_chat_tokens: int = Field(default=50_000, ge=1, le=1_000_000)
+    triage_max_input_tokens: int = Field(default=16_000, ge=1, le=200_000)
+    triage_max_output_tokens: int = Field(default=2048, ge=1, le=32_768)
 
     log_level: str = Field(default="INFO")
 
@@ -81,9 +85,7 @@ class Settings(BaseSettings):
 
     @property
     def semantic_retrieval_configured(self) -> bool:
-        return (
-            self.triage_llm_provider in ("azure", "openai") and self.embeddings_available
-        )
+        return self.triage_llm_provider in ("azure", "openai") and self.embeddings_available
 
 
 @lru_cache(maxsize=1)

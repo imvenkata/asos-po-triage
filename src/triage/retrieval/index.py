@@ -1,4 +1,5 @@
 """Assembles the searchable SOP index: chunk -> redact -> embed -> fuse."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -45,7 +46,9 @@ class SopIndex:
                 log.info("Dense index built over %d chunks (%s)", len(chunks), embedder.name)
             except LLMError as exc:
                 if not settings.triage_allow_lexical_only:
-                    raise LLMError("Semantic index initialization failed; startup refused.") from exc
+                    raise LLMError(
+                        "Semantic index initialization failed; startup refused."
+                    ) from exc
                 # Degrade to lexical-only, but say so at WARNING and record it, so
                 # a half-working retriever never looks like a healthy one.
                 log.warning("Dense index unavailable, running lexical-only: %s", exc)
@@ -72,9 +75,7 @@ class SopIndex:
             for doc in {cid.split(" §")[0] for cid in ids}:
                 graph.setdefault(doc, set()).update(ids)
         if graph:
-            log.info(
-                "Conflict graph: %s carry unresolved threshold conflicts", sorted(graph)
-            )
+            log.info("Conflict graph: %s carry unresolved threshold conflicts", sorted(graph))
         return graph
 
     @property
@@ -98,10 +99,9 @@ class SopIndex:
         lexical = self._bm25.search(query, pool)
         dense: list[tuple[int, float]] = []
         if self._dense is not None and self._embedder is not None:
-            try:
-                dense = self._dense.search(self._embedder.embed([query])[0], pool)
-            except LLMError as exc:
-                log.warning("Query embedding failed, this query is lexical-only: %s", exc)
+            # A query-time provider outage is not evidence that the question is
+            # out of scope. Match the async path: fail the dependency request.
+            dense = self._dense.search(self._embedder.embed([query])[0], pool)
 
         return self._rank(lexical, dense, top_k)
 
@@ -116,9 +116,7 @@ class SopIndex:
         return self._rank(lexical, dense, top_k)
 
     def _rank(self, lexical, dense, top_k: int) -> list[RetrievedChunk]:
-        fused = reciprocal_rank_fusion(
-            lexical, dense, k=self._settings.triage_rrf_k, top_k=top_k
-        )
+        fused = reciprocal_rank_fusion(lexical, dense, k=self._settings.triage_rrf_k, top_k=top_k)
         results = [
             RetrievedChunk(
                 chunk=self.chunks[h.index],
@@ -132,9 +130,7 @@ class SopIndex:
         ]
         return self._enforce_conflict_closure(results)
 
-    def _enforce_conflict_closure(
-        self, results: list[RetrievedChunk]
-    ) -> list[RetrievedChunk]:
+    def _enforce_conflict_closure(self, results: list[RetrievedChunk]) -> list[RetrievedChunk]:
         """Never return one half of a known contradiction without the other."""
         present = {r.chunk.chunk_id for r in results}
         # Score each pulled-in section at the score of the hit that pulled it, so
@@ -149,9 +145,7 @@ class SopIndex:
                     RetrievedChunk(chunk=self.chunks[self._by_id[partner_id]], score=hit.score)
                 )
         if forced:
-            log.info(
-                "Conflict closure pulled in %s", [f.chunk.chunk_id for f in forced]
-            )
+            log.info("Conflict closure pulled in %s", [f.chunk.chunk_id for f in forced])
         return results + forced
 
     @property

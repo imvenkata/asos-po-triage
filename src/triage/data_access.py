@@ -3,6 +3,7 @@
 Kept behind a small interface so the tools do not care whether the rows come
 from JSON on disk or the Merch Planning API. Loaded once and cached.
 """
+
 from __future__ import annotations
 
 import json
@@ -27,8 +28,7 @@ class PoRepository:
             for row in json.loads(po_path.read_text(encoding="utf-8"))
         }
         self._forecasts: dict[str, Forecast] = {
-            row["sku"]: Forecast(**row)
-            for row in json.loads(fc_path.read_text(encoding="utf-8"))
+            row["sku"]: Forecast(**row) for row in json.loads(fc_path.read_text(encoding="utf-8"))
         }
 
     def get_po(self, po_id: str) -> PurchaseOrder | None:

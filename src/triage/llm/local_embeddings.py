@@ -5,6 +5,7 @@ retrieval pipeline, fusion, and guardrails are testable in CI with no network an
 no credentials. Semantic quality claims must be measured against the real
 embedding deployment - see WRITEUP.md.
 """
+
 from __future__ import annotations
 
 import hashlib

@@ -5,6 +5,7 @@ fields. Everything operational (guardrail flags, retrieval telemetry, the agent
 trace) lives on the `TriageResult` envelope so the published contract stays
 clean and stable while the diagnostics can evolve.
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -37,7 +38,11 @@ class TriageRecommendation(BaseModel):
 
     po_id: str = Field(pattern=r"^(?:PO-\d+|UNKNOWN)$")
     recommended_action: RecommendedAction
-    rationale: str = Field(min_length=1, max_length=12000, description="Explanation with inline [document.md §N] citations matching the citations array.")
+    rationale: str = Field(
+        min_length=1,
+        max_length=12000,
+        description="Explanation with inline [document.md §N] citations matching the citations array.",
+    )
     citations: list[str] = Field(default_factory=list)
     confidence: Confidence
     escalation_target_role: EscalationRole | None = None
@@ -133,6 +138,44 @@ class ToolInvocation(BaseModel):
     result_summary: str
 
 
+class StageMeasurement(BaseModel):
+    """Content-free timing and usage. Operation names are an explicit allowlist."""
+
+    stage: Literal["retrieval", "model", "tool", "validation"]
+    operation: Literal[
+        "seed",
+        "chat",
+        "get_po",
+        "get_forecast",
+        "search_sops",
+        "submit_recommendation",
+        "unknown",
+        "policy_gate",
+    ]
+    status: Literal["ok", "error", "cancelled", "rejected", "budget_exceeded"] = "ok"
+    duration_ms: float = Field(default=0, ge=0)
+    model_turn: int | None = None
+    provider_called: bool | None = None
+    estimated_input_tokens: int | None = None
+    output_token_limit: int | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None
+    usage_source: Literal["provider", "reservation"] | None = None
+
+
+class RequestTelemetry(BaseModel):
+    request_id: str
+    outcome: Literal["completed", "blocked", "error", "timeout", "cancelled"]
+    duration_ms: float
+    prompt_sha256: str
+    policy_sha256: str
+    chat_token_budget: int
+    chat_tokens_charged: int
+    usage_complete: bool
+    stages: list[StageMeasurement] = Field(default_factory=list)
+
+
 class TriageResult(BaseModel):
     """Operational envelope. The API returns this; `recommendation` is the contract."""
 
@@ -154,6 +197,7 @@ class TriageResult(BaseModel):
     model_metadata: dict[str, str] = Field(default_factory=dict)
     evidence_po_id: str | None = None
     review_required: bool = True
+    telemetry: RequestTelemetry | None = None
 
     @property
     def blocked(self) -> bool:

@@ -3,6 +3,7 @@
 `SopIndex` depends on this narrow interface rather than a vendor SDK, so the
 retrieval layer is unaffected by which provider is configured.
 """
+
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
@@ -83,8 +84,10 @@ class OpenAIEmbedder:
         if not settings.openai_api_key:
             raise LLMError("OPENAI_API_KEY not set.")
         self._client = OpenAIEmbeddings(
-            api_key=settings.openai_api_key, model=settings.openai_embedding_model,
-            request_timeout=settings.triage_request_timeout_s, max_retries=1,
+            api_key=settings.openai_api_key,
+            model=settings.openai_embedding_model,
+            request_timeout=settings.triage_request_timeout_s,
+            max_retries=1,
         )
         self.name = f"openai:{settings.openai_embedding_model}"
 

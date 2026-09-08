@@ -7,6 +7,7 @@ Note what the system prompt does NOT do: it does not carry the policy thresholds
 Policy values come from evidence. Changes to the explicit controls in
 policy_rules.py require matching source and regression-test updates.
 """
+
 from __future__ import annotations
 
 from .models import RetrievedChunk
@@ -78,7 +79,7 @@ def format_context_block(retrieved: list[RetrievedChunk]) -> str:
     """Seed evidence; retrieval alone does not prove answerability.
 
     Seeding retrieval rather than relying on the model to search first means every
-    run is grounded in at least one retrieval pass; the `search_sops` tool then
+    run receives an initial evidence search; the `search_sops` tool then
     lets the agent go deeper once it knows what kind of PO it is dealing with.
     """
     if not retrieved:

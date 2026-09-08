@@ -1,16 +1,15 @@
 """PO and forecast lookup tools.
 
 Deliberate design choice: `get_po` returns pre-computed variance alongside the
-raw record. LLMs are unreliable at arithmetic and highly reliable at reading a
-policy and applying a stated number, so the split is - Python computes the
-figures, the model interprets the policy. This removes an entire class of silent
-failure (a plausible-looking recommendation resting on a miscalculated
-percentage) without weakening the model's actual job.
+raw record. Python computes figures and the model interprets policy. This reduces
+arithmetic risk; it does not prove every number or claim in generated prose is
+correct. The final gate checks literal numerical provenance and explicit rules.
 """
+
 from __future__ import annotations
 
-from typing import Any
 from decimal import Decimal
+from typing import Any
 
 from ..data_access import PoRepository
 from ..models import PurchaseOrder
@@ -18,10 +17,16 @@ from ..models import PurchaseOrder
 
 def compute_variance(po: PurchaseOrder) -> dict[str, Any]:
     qty_var = (
-        float(Decimal(po.ordered_qty - po.confirmed_qty) / Decimal(po.ordered_qty) * 100) if po.ordered_qty else None
+        float(Decimal(po.ordered_qty - po.confirmed_qty) / Decimal(po.ordered_qty) * 100)
+        if po.ordered_qty
+        else None
     )
     val_var = (
-        float((Decimal(str(po.original_value_gbp)) - Decimal(str(po.value_gbp))) / Decimal(str(po.original_value_gbp)) * 100)
+        float(
+            (Decimal(str(po.original_value_gbp)) - Decimal(str(po.value_gbp)))
+            / Decimal(str(po.original_value_gbp))
+            * 100
+        )
         if po.original_value_gbp
         else None
     )

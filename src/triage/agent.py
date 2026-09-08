@@ -1,4 +1,5 @@
 """Bounded, single-agent investigation followed by deterministic validation."""
+
 from __future__ import annotations
 
 import asyncio
@@ -18,9 +19,11 @@ from .data_access import PoRepository, get_repository
 from .llm.base import LLMError, TriageTimeout
 from .llm.chat import build_chat_model, describe
 from .models import GuardrailFlag, ToolInvocation, TriageRecommendation, TriageResult
+from .observability import RunTelemetry, fingerprint
 from .policy_gate import apply_policy_gate
 from .prompts import SYSTEM_PROMPT, format_context_block
 from .retrieval.index import SopIndex, build_index
+from .token_budget import TokenBudget, estimate_input_tokens
 from .tools.registry import TERMINAL_TOOL, RetrievalRecorder, build_tools
 
 
@@ -33,68 +36,189 @@ class TriageState(TypedDict, total=False):
     flags: list[GuardrailFlag]
 
 
-def build_graph(model: BaseChatModel, tools, settings: Settings | None = None):
+def build_graph(
+    model: BaseChatModel,
+    tools,
+    settings: Settings | None = None,
+    telemetry: RunTelemetry | None = None,
+    budget: TokenBudget | None = None,
+):
+    """Build an investigation graph; its evidence and counters are request-local."""
     settings = settings or get_settings()
+    telemetry = telemetry or RunTelemetry(fingerprint(SYSTEM_PROMPT), fingerprint([]))
+    budget = budget or TokenBudget(settings)
     bound = model.bind_tools(tools)
     by_name = {tool.name: tool for tool in tools}
+    schemas = TokenBudget.schemas(tools)
+
+    def blocked(state, name, detail, **updates):
+        return {
+            "done": True,
+            "flags": state.get("flags", [])
+            + [GuardrailFlag(name=name, detail=detail, blocking=True)],
+            **updates,
+        }
 
     async def agent_node(state):
-        message = await bound.ainvoke(state["messages"])
-        return {"messages": [message], "steps": state.get("steps", 0) + 1}
+        turn = state.get("steps", 0) + 1
+        estimate = estimate_input_tokens(state["messages"], schemas)
+        with telemetry.measure(
+            "model",
+            "chat",
+            model_turn=turn,
+            provider_called=False,
+            estimated_input_tokens=estimate,
+            output_token_limit=budget.max_output,
+        ) as measurement:
+            if not budget.reserve(estimate):
+                measurement.status = "budget_exceeded"
+                return blocked(
+                    state,
+                    "token_budget_exceeded",
+                    "The chat token budget cannot admit another complete evidence-backed call.",
+                )
+            measurement.usage_source = "reservation"
+            measurement.provider_called = True
+            try:
+                message = await bound.ainvoke(
+                    state["messages"],
+                    max_completion_tokens=budget.max_output,
+                )
+            except BaseException:
+                budget.usage_complete = False
+                raise
+            updates = {"messages": [message], "steps": turn}
+            if not budget.settle(estimate, message.usage_metadata, measurement):
+                measurement.status = "budget_exceeded"
+                return blocked(
+                    state,
+                    "token_budget_exceeded",
+                    "Reported chat usage exceeded a configured token boundary.",
+                    **updates,
+                )
+            if message.response_metadata.get("finish_reason") == "length":
+                measurement.status = "rejected"
+                return blocked(
+                    state,
+                    "model_output_truncated",
+                    "The model reached its output limit; incomplete output was rejected.",
+                    **updates,
+                )
+            return updates
 
     async def dispatch(state):
+        if state.get("done"):
+            return {}
         message = state["messages"][-1]
         calls = message.tool_calls if isinstance(message, AIMessage) else []
         terminal = [c for c in calls if c["name"] == TERMINAL_TOOL]
         if not calls:
-            return {"messages": [HumanMessage(content="Call submit_recommendation using the schema, after collecting evidence.")]}
+            return {
+                "messages": [
+                    HumanMessage(
+                        content="Call submit_recommendation using the schema, after collecting evidence."
+                    )
+                ]
+            }
         if len(calls) > settings.triage_max_tool_calls_per_turn or (terminal and len(calls) != 1):
             return {
-                "messages": [ToolMessage(content="Rejected: submit alone; tool batch not executed.",
-                                         tool_call_id=c["id"], name=c["name"], status="error") for c in calls],
-                "flags": state.get("flags", []) + [GuardrailFlag(
-                    name="invalid_tool_batch", detail="A terminal or oversized tool batch was rejected.", blocking=True)],
+                "messages": [
+                    ToolMessage(
+                        content="Rejected: submit alone; tool batch not executed.",
+                        tool_call_id=c["id"],
+                        name=c["name"],
+                        status="error",
+                    )
+                    for c in calls
+                ],
+                "flags": state.get("flags", [])
+                + [
+                    GuardrailFlag(
+                        name="invalid_tool_batch",
+                        detail="A terminal or oversized tool batch was rejected.",
+                        blocking=True,
+                    )
+                ],
                 "done": True,
             }
         if terminal:
             call = terminal[0]
-            try:
-                rec = TriageRecommendation.model_validate(call["args"])
-            except ValidationError as exc:
-                # Locations and types only. Never echo invalid input values.
-                errors = [{"field": str(e["loc"][0]) if e["loc"] else "object",
-                           "type": e["type"]} for e in exc.errors(include_input=False)]
-                return {
-                    "messages": [ToolMessage(
-                        content=json.dumps({"error": "Invalid recommendation schema", "fields": errors}),
-                        name=TERMINAL_TOOL, tool_call_id=call["id"], status="error")],
-                    "repairs": state.get("repairs", 0) + 1,
-                    "done": state.get("repairs", 0) >= 1,
-                }
+            with telemetry.measure("tool", TERMINAL_TOOL, model_turn=state["steps"]) as measurement:
+                try:
+                    rec = TriageRecommendation.model_validate(call["args"])
+                except ValidationError as exc:
+                    measurement.status = "rejected"
+                    # Locations and types only. Never echo invalid input values.
+                    errors = [
+                        {"field": str(e["loc"][0]) if e["loc"] else "object", "type": e["type"]}
+                        for e in exc.errors(include_input=False)
+                    ]
+                    return {
+                        "messages": [
+                            ToolMessage(
+                                content=json.dumps(
+                                    {"error": "Invalid recommendation schema", "fields": errors}
+                                ),
+                                name=TERMINAL_TOOL,
+                                tool_call_id=call["id"],
+                                status="error",
+                            )
+                        ],
+                        "repairs": state.get("repairs", 0) + 1,
+                        "done": state.get("repairs", 0) >= 1,
+                    }
             return {
-                "messages": [ToolMessage(content="accepted", name=TERMINAL_TOOL,
-                                         tool_call_id=call["id"], status="success")],
-                "raw": rec.model_dump(), "done": True,
+                "messages": [
+                    ToolMessage(
+                        content="accepted",
+                        name=TERMINAL_TOOL,
+                        tool_call_id=call["id"],
+                        status="success",
+                    )
+                ],
+                "raw": rec.model_dump(),
+                "done": True,
             }
         results = []
         for call in calls:
             tool = by_name.get(call["name"])
-            try:
-                if tool is None:
-                    raise ValueError("Unknown tool")
-                content = await tool.ainvoke(call["args"])
-                failed = isinstance(content, str) and isinstance(json.loads(content), dict) and "error" in json.loads(content)
-            except LLMError:
-                raise
-            except Exception as exc:
-                content = json.dumps({"error": "Tool execution failed", "category": type(exc).__name__})
-                failed = True
-            results.append(ToolMessage(content=content, tool_call_id=call["id"], name=call["name"],
-                                       status="error" if failed else "success"))
+            # Never log a model-supplied name unless it is a known tool label.
+            operation = call["name"] if tool is not None else "unknown"
+            with telemetry.measure("tool", operation, model_turn=state["steps"]) as measurement:
+                try:
+                    if tool is None:
+                        raise ValueError("Unknown tool")
+                    content = await tool.ainvoke(call["args"])
+                    failed = (
+                        isinstance(content, str)
+                        and isinstance(json.loads(content), dict)
+                        and "error" in json.loads(content)
+                    )
+                except LLMError:
+                    raise
+                except Exception as exc:
+                    content = json.dumps(
+                        {"error": "Tool execution failed", "category": type(exc).__name__}
+                    )
+                    failed = True
+                if failed:
+                    measurement.status = "error"
+            results.append(
+                ToolMessage(
+                    content=content,
+                    tool_call_id=call["id"],
+                    name=call["name"],
+                    status="error" if failed else "success",
+                )
+            )
         return {"messages": results}
 
     def route(state):
-        return END if state.get("done") or state["steps"] >= settings.triage_max_agent_steps else "agent"
+        return (
+            END
+            if state.get("done") or state["steps"] >= settings.triage_max_agent_steps
+            else "agent"
+        )
 
     graph = StateGraph(TriageState)
     graph.add_node("agent", agent_node)
@@ -106,11 +230,23 @@ def build_graph(model: BaseChatModel, tools, settings: Settings | None = None):
 
 
 class TriageAgent:
-    def __init__(self, model: BaseChatModel, index: SopIndex, repo: PoRepository,
-                 settings: Settings | None = None) -> None:
+    def __init__(
+        self,
+        model: BaseChatModel,
+        index: SopIndex,
+        repo: PoRepository,
+        settings: Settings | None = None,
+    ) -> None:
         self._model, self._index, self._repo = model, index, repo
         self._settings = settings or get_settings()
         self.name = describe(model, self._settings)
+        self._prompt_sha256 = fingerprint(SYSTEM_PROMPT)
+        self._policy_sha256 = fingerprint(
+            [
+                (c.chunk_id, c.heading, c.text)
+                for c in sorted(index.chunks, key=lambda c: c.chunk_id)
+            ]
+        )
 
     @property
     def semantic_retrieval_available(self) -> bool:
@@ -121,64 +257,129 @@ class TriageAgent:
         return self._index.registry
 
     def triage(self, question: str) -> TriageResult:
-        """Synchronous CLI entry point. Async callers should await atriage."""
+        """One-shot CLI entry point. Repeated callers should share a loop for atriage."""
         return asyncio.run(self.atriage(question))
 
     async def atriage(self, question: str) -> TriageResult:
+        telemetry = RunTelemetry(self._prompt_sha256, self._policy_sha256)
+        budget = TokenBudget(self._settings)
+        outcome = "error"
         try:
-            return await asyncio.wait_for(self._investigate(question),
-                                          timeout=self._settings.triage_total_timeout_s)
+            result = await asyncio.wait_for(
+                self._investigate(question, telemetry, budget),
+                timeout=self._settings.triage_total_timeout_s,
+            )
+            outcome = "blocked" if result.blocked else "completed"
         except TimeoutError as exc:
-            raise TriageTimeout("Triage request deadline exceeded.") from exc
-        except LLMError:
+            outcome = "timeout"
+            raise TriageTimeout(
+                "Triage request deadline exceeded.", request_id=telemetry.request_id
+            ) from exc
+        except asyncio.CancelledError:
+            outcome = "cancelled"
             raise
+        except LLMError as exc:
+            raise LLMError(
+                "Triage dependency unavailable.", request_id=telemetry.request_id
+            ) from exc
         except Exception as exc:
             # Provider exception text can contain prompts, tokens or contact data.
-            raise LLMError(f"Triage dependency failed ({type(exc).__name__}).") from exc
+            raise LLMError(
+                "Triage dependency unavailable.", request_id=telemetry.request_id
+            ) from exc
+        finally:
+            report = telemetry.finish(outcome, budget)
+        # Measurements contain only allowlisted labels, opaque hashes and counts;
+        # no untrusted prose is added after the policy gate's sanitisation.
+        result.telemetry = report
+        return result
 
-    async def _investigate(self, question: str) -> TriageResult:
+    async def _investigate(
+        self, question: str, telemetry: RunTelemetry, budget: TokenBudget
+    ) -> TriageResult:
         settings = self._settings
         po_ids = list(dict.fromkeys(re.findall(r"\bPO-\d+\b", question, re.IGNORECASE)))
         po_ids = list(dict.fromkeys(p.upper() for p in po_ids))
         requested = po_ids[0] if len(po_ids) == 1 else "UNKNOWN"
-        recorder = RetrievalRecorder(settings.triage_max_context_chunks,
-                                     requested if requested != "UNKNOWN" else None)
-        seed = await self._index.asearch(question)
-        recorder.record(seed)
+        recorder = RetrievalRecorder(
+            settings.triage_max_context_chunks, requested if requested != "UNKNOWN" else None
+        )
+        with telemetry.measure("retrieval", "seed"):
+            seed = await self._index.asearch(question)
+            recorder.record(seed)
         flags = []
         raw, trace, steps, usage = None, [], 0, {}
         model_metadata = {}
         if len(po_ids) > 1:
-            flags.append(GuardrailFlag(name="multiple_po_ids",
-                                      detail="Ask about one PO at a time.", blocking=True))
+            flags.append(
+                GuardrailFlag(
+                    name="multiple_po_ids", detail="Ask about one PO at a time.", blocking=True
+                )
+            )
         else:
-            graph = build_graph(self._model, build_tools(
-                self._repo, self._index, recorder, settings.triage_retrieval_top_k), settings)
+            graph = build_graph(
+                self._model,
+                build_tools(self._repo, self._index, recorder, settings.triage_retrieval_top_k),
+                settings,
+                telemetry,
+                budget,
+            )
             final = await graph.ainvoke(
-                {"messages": [SystemMessage(content=SYSTEM_PROMPT),
-                              HumanMessage(content=question),
-                              HumanMessage(content=format_context_block(seed))],
-                 "steps": 0, "repairs": 0, "raw": None, "done": False, "flags": []},
+                {
+                    "messages": [
+                        SystemMessage(content=SYSTEM_PROMPT),
+                        HumanMessage(content=question),
+                        HumanMessage(content=format_context_block(seed)),
+                    ],
+                    "steps": 0,
+                    "repairs": 0,
+                    "raw": None,
+                    "done": False,
+                    "flags": [],
+                },
                 config={"recursion_limit": settings.triage_max_agent_steps * 2 + 2},
             )
             raw = final.get("raw")
             for msg in final["messages"]:
                 if isinstance(msg, AIMessage):
-                    model_metadata.update({k: str(v) for k, v in msg.response_metadata.items()
-                                           if k in {"model_name", "model", "system_fingerprint"} and v is not None})
+                    model_metadata.update(
+                        {
+                            k: str(v)
+                            for k, v in msg.response_metadata.items()
+                            if k in {"model_name", "model", "system_fingerprint"} and v is not None
+                        }
+                    )
             _, trace, steps, usage = self._harvest(final["messages"])
             flags.extend(final.get("flags", []))
             if not final.get("done") and steps >= settings.triage_max_agent_steps:
-                flags.append(GuardrailFlag(name="agent_step_budget",
-                                          detail="The model turn budget was exhausted.", blocking=True))
-        return apply_policy_gate(
-            question=question, raw=raw, index=self._index, settings=settings,
-            exposed_chunk_ids=recorder.exposed_chunk_ids, retrieved=recorder.retrieved,
-            seed=seed, observations=None, tool_log=trace, steps=steps, usage=usage,
-            provider=self.name, po_id=requested, po=recorder.po,
-            po_payload=recorder.po_payload, forecasts=recorder.forecasts, initial_flags=flags,
-            model_metadata=model_metadata,
-        )
+                flags.append(
+                    GuardrailFlag(
+                        name="agent_step_budget",
+                        detail="The model turn budget was exhausted.",
+                        blocking=True,
+                    )
+                )
+        with telemetry.measure("validation", "policy_gate"):
+            return apply_policy_gate(
+                question=question,
+                raw=raw,
+                index=self._index,
+                settings=settings,
+                exposed_chunk_ids=recorder.exposed_chunk_ids,
+                retrieved=recorder.retrieved,
+                seed=seed,
+                observations=None,
+                tool_log=trace,
+                steps=steps,
+                usage=usage,
+                provider=self.name,
+                po_id=requested,
+                po=recorder.po,
+                po_payload=recorder.po_payload,
+                forecasts=recorder.forecasts,
+                initial_flags=flags,
+                model_metadata=model_metadata,
+            )
 
     @staticmethod
     def _harvest(messages: Sequence[BaseMessage]):
@@ -189,26 +390,44 @@ class TriageAgent:
             if not isinstance(msg, AIMessage):
                 continue
             step += 1
-            for source, target in (("input_tokens", "prompt_tokens"), ("output_tokens", "completion_tokens"),
-                                   ("total_tokens", "total_tokens")):
+            for source, target in (
+                ("input_tokens", "prompt_tokens"),
+                ("output_tokens", "completion_tokens"),
+                ("total_tokens", "total_tokens"),
+            ):
                 usage[target] = usage.get(target, 0) + (msg.usage_metadata or {}).get(source, 0)
             for call in msg.tool_calls or []:
                 outcome = outcomes.get(call["id"])
-                summary = "not_executed" if outcome is None else (
-                    "failed" if outcome.status == "error" else "executed")
+                summary = (
+                    "not_executed"
+                    if outcome is None
+                    else ("failed" if outcome.status == "error" else "executed")
+                )
                 if call["name"] == TERMINAL_TOOL:
                     try:
                         rec = TriageRecommendation.model_validate(call.get("args") or {})
-                        if outcome is not None and outcome.status == "success" and outcome.content == "accepted":
+                        if (
+                            outcome is not None
+                            and outcome.status == "success"
+                            and outcome.content == "accepted"
+                        ):
                             raw, summary = rec.model_dump(), "accepted"
                     except ValidationError:
                         summary = "rejected_schema"
-                trace.append(ToolInvocation(step=step, name=call["name"],
-                                            arguments=call.get("args") or {}, result_summary=summary))
+                trace.append(
+                    ToolInvocation(
+                        step=step,
+                        name=call["name"],
+                        arguments=call.get("args") or {},
+                        result_summary=summary,
+                    )
+                )
         return raw, trace, step, usage
 
 
-def build_agent(settings: Settings | None = None, model: BaseChatModel | None = None) -> TriageAgent:
+def build_agent(
+    settings: Settings | None = None, model: BaseChatModel | None = None
+) -> TriageAgent:
     settings = settings or get_settings()
     from .llm.embeddings import build_embedder
 
@@ -219,9 +438,17 @@ def build_agent(settings: Settings | None = None, model: BaseChatModel | None = 
             raise
         embedder = None
     index = build_index(settings, embedder)
-    if settings.triage_llm_provider != "scripted" and not index.semantic_scores_meaningful and not settings.triage_allow_lexical_only:
-        raise LLMError("A semantic index is required. Lexical-only mode must be explicitly enabled.")
-    return TriageAgent(model or build_chat_model(settings), index, get_repository(settings), settings)
+    if (
+        settings.triage_llm_provider != "scripted"
+        and not index.semantic_scores_meaningful
+        and not settings.triage_allow_lexical_only
+    ):
+        raise LLMError(
+            "A semantic index is required. Lexical-only mode must be explicitly enabled."
+        )
+    return TriageAgent(
+        model or build_chat_model(settings), index, get_repository(settings), settings
+    )
 
 
 __all__ = ["TriageAgent", "build_agent", "build_graph", "LLMError"]

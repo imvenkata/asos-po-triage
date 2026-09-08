@@ -1,5 +1,6 @@
 """Structured-ish logging. One place to configure it, so the agent trace and the
 library logs interleave predictably when demoing."""
+
 from __future__ import annotations
 
 import logging

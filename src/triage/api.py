@@ -3,11 +3,12 @@
 The agent is built once at startup, not per request: index construction embeds
 the whole corpus, and doing that per request would dominate latency and cost.
 """
+
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from .agent import TriageAgent, build_agent
@@ -43,15 +44,26 @@ def health() -> dict[str, str]:
 
 
 @app.post("/triage", response_model=TriageResult)
-async def triage(request: TriageRequest) -> TriageResult:
+async def triage(request: TriageRequest, response: Response) -> TriageResult:
     agent = _state.get("agent")
     if agent is None:
         raise HTTPException(status_code=503, detail="Agent not ready")
     try:
-        return await agent.atriage(request.question)
+        result = await agent.atriage(request.question)
+        if result.telemetry is not None:
+            response.headers["X-Request-ID"] = result.telemetry.request_id
+        return result
     except TriageTimeout as exc:
-        raise HTTPException(status_code=504, detail="Triage request deadline exceeded") from exc
+        raise HTTPException(
+            status_code=504,
+            detail="Triage request deadline exceeded",
+            headers={"X-Request-ID": exc.request_id} if exc.request_id else None,
+        ) from exc
     except LLMError as exc:
         # 502: the upstream model failed. Never substitute a fabricated answer.
         log.error("Triage dependency failed (%s)", type(exc).__name__)
-        raise HTTPException(status_code=502, detail="Triage dependency unavailable") from exc
+        raise HTTPException(
+            status_code=502,
+            detail="Triage dependency unavailable",
+            headers={"X-Request-ID": exc.request_id} if exc.request_id else None,
+        ) from exc

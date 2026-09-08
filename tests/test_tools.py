@@ -11,7 +11,10 @@ def _tools(settings, index, top_k=6):
 
 def test_the_four_tools_are_exposed(settings, index):
     assert {t.name for t in _tools(settings, index)} == {
-        "get_po", "get_forecast", "search_sops", TERMINAL_TOOL
+        "get_po",
+        "get_forecast",
+        "search_sops",
+        TERMINAL_TOOL,
     }
 
 

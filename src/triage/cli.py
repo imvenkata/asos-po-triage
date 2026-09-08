@@ -1,7 +1,9 @@
 """CLI. `triage ask` for one-shot, bare `triage` for an interactive loop."""
+
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import sys
 
@@ -75,6 +77,35 @@ def render(result: TriageResult, show_trace: bool = False) -> None:
                 escape(call.result_summary),
             )
         console.print(trace)
+        if result.telemetry is not None:
+            telemetry = result.telemetry
+            console.print(
+                f"[dim]request={telemetry.request_id}  elapsed={telemetry.duration_ms:.0f}ms  "
+                f"chat budget charged={telemetry.chat_tokens_charged}/{telemetry.chat_token_budget}  "
+                f"usage complete={telemetry.usage_complete}[/]"
+            )
+            timings = Table(title="Request measurements", header_style="dim")
+            for column in ("turn", "operation", "status", "ms", "input tokens", "output tokens"):
+                timings.add_column(column)
+            for stage in telemetry.stages:
+                input_tokens = (
+                    str(stage.input_tokens)
+                    if stage.input_tokens is not None
+                    else (
+                        f"~{stage.estimated_input_tokens}"
+                        if stage.estimated_input_tokens is not None
+                        else "—"
+                    )
+                )
+                timings.add_row(
+                    str(stage.model_turn or "—"),
+                    stage.operation,
+                    stage.status,
+                    f"{stage.duration_ms:.1f}",
+                    input_tokens,
+                    str(stage.output_tokens) if stage.output_tokens is not None else "—",
+                )
+            console.print(timings)
 
 
 def _agent() -> TriageAgent:
@@ -96,6 +127,12 @@ def cmd_ask(args: argparse.Namespace) -> int:
 
 
 def cmd_repl(args: argparse.Namespace) -> int:
+    # Keep pooled async provider connections on one loop for the whole session.
+    with asyncio.Runner() as runner:
+        return _repl(args, runner)
+
+
+def _repl(args: argparse.Namespace, runner: asyncio.Runner) -> int:
     agent = _agent()
     console.print("[dim]Ask about a PO. Ctrl-D or 'exit' to quit.[/]")
     while True:
@@ -109,7 +146,7 @@ def cmd_repl(args: argparse.Namespace) -> int:
         if not question:
             continue
         try:
-            render(agent.triage(question), show_trace=args.trace)
+            render(runner.run(agent.atriage(question)), show_trace=args.trace)
         except LLMError as exc:
             diagnostics.print(f"[red]LLM error:[/] {exc}")
 
@@ -146,7 +183,8 @@ def cmd_doctor(_: argparse.Namespace) -> int:
     table.add_row("data_dir", str(settings.data_dir))
     table.add_row(
         "semantic retrieval",
-        "yes" if settings.semantic_retrieval_configured
+        "yes"
+        if settings.semantic_retrieval_configured
         else "[yellow]NO — grounding guardrail will be INACTIVE[/]",
     )
     if settings.triage_llm_provider == "azure":

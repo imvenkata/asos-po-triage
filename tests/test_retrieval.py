@@ -22,7 +22,9 @@ def test_wholesale_query_reaches_the_channel_restriction(index):
 
 
 def test_rrf_rewards_agreement_between_rankers():
-    fused = reciprocal_rank_fusion(lexical=[(1, 9.0), (2, 8.0)], dense=[(2, 0.9), (3, 0.8)], top_k=3)
+    fused = reciprocal_rank_fusion(
+        lexical=[(1, 9.0), (2, 8.0)], dense=[(2, 0.9), (3, 0.8)], top_k=3
+    )
     assert fused[0].index == 2  # ranked by both, so it wins despite topping neither
     assert fused[0].lexical_rank == 2 and fused[0].dense_rank == 1
 
@@ -41,6 +43,7 @@ def test_conflict_closure_fires_even_when_neither_half_ranks(index):
 
 def test_closure_is_a_no_op_for_documents_without_conflicts(index, settings):
     from triage.retrieval.index import SopIndex
+
     chunks = [c for c in index.chunks if c.doc == "backorder_reconciliation.md"]
     clean = SopIndex(chunks, index.registry, settings)
     hits = clean.search("maximum backorder delay", top_k=1)

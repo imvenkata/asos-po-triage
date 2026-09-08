@@ -14,17 +14,25 @@ def test_api_serializes_safe_envelope_and_review_state(monkeypatch, settings, in
             return super()._decide(po, messages) | {"rationale": "Contact priya.raman@asos.com."}
 
     monkeypatch.setattr(api, "get_settings", lambda: settings)
-    monkeypatch.setattr(api, "build_agent", lambda _: TriageAgent(LeakingModel(), index, get_repository(settings), settings))
+    monkeypatch.setattr(
+        api,
+        "build_agent",
+        lambda _: TriageAgent(LeakingModel(), index, get_repository(settings), settings),
+    )
     with TestClient(api.app) as client:
-        response = client.post("/triage", json={"question": "Amend the minor variance on PO-10001?"})
+        response = client.post(
+            "/triage", json={"question": "Amend the minor variance on PO-10001?"}
+        )
         assert response.status_code == 200
         assert "priya.raman" not in response.text
         assert response.json()["recommendation"]["recommended_action"] == "escalate"
         assert response.json()["review_required"]
 
 
-@pytest.mark.parametrize("error,status", [(LLMError("secret provider body"), 502),
-                                        (TriageTimeout("secret provider body"), 504)])
+@pytest.mark.parametrize(
+    "error,status",
+    [(LLMError("secret provider body"), 502), (TriageTimeout("secret provider body"), 504)],
+)
 def test_errors_do_not_expose_provider_bodies(monkeypatch, settings, error, status, caplog):
     class FailedAgent:
         async def atriage(self, question):

@@ -10,6 +10,7 @@ WHAT THIS IS NOT: a language model. Offline results measure orchestration and
 guardrails only. Model-quality claims require a real provider, and the eval
 runner prints that caveat on every offline run.
 """
+
 from __future__ import annotations
 
 import json
@@ -63,9 +64,7 @@ class ScriptedChatModel(BaseChatModel):
         run_manager: CallbackManagerForLLMRun | None = None,
         **kwargs: Any,
     ) -> ChatResult:
-        question = next(
-            (str(m.content) for m in messages if m.type == "human"), ""
-        )
+        question = next((str(m.content) for m in messages if m.type == "human"), "")
         po_rows = _tool_results(messages, "get_po")
 
         if not po_rows:
@@ -74,21 +73,27 @@ class ScriptedChatModel(BaseChatModel):
 
         po = po_rows[0]
         if po.get("error"):
-            return self._call(TERMINAL_TOOL, {
-                "po_id": po.get("po_id", "UNKNOWN"),
-                "recommended_action": _ESCALATE,
-                "rationale": f"PO could not be retrieved: {po['error']}. No policy "
-                             "can be applied without the PO record.",
-                "citations": [],
-                "confidence": "low",
-                "escalation_target_role": "Senior Merch Planner",
-            })
+            return self._call(
+                TERMINAL_TOOL,
+                {
+                    "po_id": po.get("po_id", "UNKNOWN"),
+                    "recommended_action": _ESCALATE,
+                    "rationale": f"PO could not be retrieved: {po['error']}. No policy "
+                    "can be applied without the PO record.",
+                    "citations": [],
+                    "confidence": "low",
+                    "escalation_target_role": "Senior Merch Planner",
+                },
+            )
 
         if not _tool_results(messages, "search_sops"):
-            return self._call("search_sops", {
-                "query": f"{question} variance amendment threshold "
-                         f"{po.get('channel','')} {po.get('status','')}"
-            })
+            return self._call(
+                "search_sops",
+                {
+                    "query": f"{question} variance amendment threshold "
+                    f"{po.get('channel', '')} {po.get('status', '')}"
+                },
+            )
 
         return self._call(TERMINAL_TOOL, self._decide(po, messages))
 
@@ -123,59 +128,92 @@ class ScriptedChatModel(BaseChatModel):
             }
 
         if status == "planned":
-            return out("firm_planned_order",
-                       "PO is still in planned status and has not been transmitted to the "
-                       "supplier, so it should be firmed at the corrected quantity.",
-                       "high", None, ("po_amendment_policy",))
+            return out(
+                "firm_planned_order",
+                "PO is still in planned status and has not been transmitted to the "
+                "supplier, so it should be firmed at the corrected quantity.",
+                "high",
+                None,
+                ("po_amendment_policy",),
+            )
 
         if any(w in note for w in ("administration", "insolven", "force majeure", "customs")):
-            return out(_ESCALATE,
-                       "The PO is affected by a supplier viability event, which has no "
-                       "defined variance signature in the SOPs.",
-                       "high", "Supply Chain Risk Lead",
-                       ("variance_detection_sop", "merch_escalation_matrix"))
+            return out(
+                _ESCALATE,
+                "The PO is affected by a supplier viability event, which has no "
+                "defined variance signature in the SOPs.",
+                "high",
+                "Supply Chain Risk Lead",
+                ("variance_detection_sop", "merch_escalation_matrix"),
+            )
 
         if over:
-            return out(_ESCALATE,
-                       "The supplier confirmed more than ordered; the absolute value "
-                       "variance requires cancel-and-re-raise review.",
-                       "medium", "Senior Merch Planner", ("variance_detection_sop",))
+            return out(
+                _ESCALATE,
+                "The supplier confirmed more than ordered; the absolute value "
+                "variance requires cancel-and-re-raise review.",
+                "medium",
+                "Senior Merch Planner",
+                ("variance_detection_sop",),
+            )
 
         if po.get("material_policy_conflicts"):
-            return out(_ESCALATE,
-                       "The retrieved policy sections specify conflicting variance "
-                       "thresholds for this decision.",
-                       "low", "Senior Merch Planner",
-                       ("po_amendment_policy", "variance_detection_sop"))
+            return out(
+                _ESCALATE,
+                "The retrieved policy sections specify conflicting variance "
+                "thresholds for this decision.",
+                "low",
+                "Senior Merch Planner",
+                ("po_amendment_policy", "variance_detection_sop"),
+            )
 
         if value > 50_000 or qty_var > 30:
             role = "Wholesale Planning Lead" if channel == "wholesale" else "Head of Buying"
-            return out(_ESCALATE,
-                       "The PO breaches the critical tier on value and/or variance, so no "
-                       "auto-action is permitted.",
-                       "high", role, ("variance_detection_sop", "po_amendment_policy"))
+            return out(
+                _ESCALATE,
+                "The PO breaches the critical tier on value and/or variance, so no "
+                "auto-action is permitted.",
+                "high",
+                role,
+                ("variance_detection_sop", "po_amendment_policy"),
+            )
 
         if qty_var > 15:
             if po.get("remainder_eta"):
-                return out("split_child_po",
-                           "A firm delivery date exists for the shortfall, so the parent "
-                           "should be sub-divided rather than backordered.",
-                           "high", None, ("child_po_split_rules",))
+                return out(
+                    "split_child_po",
+                    "A firm delivery date exists for the shortfall, so the parent "
+                    "should be sub-divided rather than backordered.",
+                    "high",
+                    None,
+                    ("child_po_split_rules",),
+                )
             if channel == "wholesale":
-                return out(_ESCALATE,
-                           "Backorders are not permitted on wholesale POs and no later "
-                           "delivery window has been agreed.",
-                           "high", "Wholesale Planning Lead",
-                           ("backorder_reconciliation", "merch_escalation_matrix"))
-            return out("raise_backorder",
-                       "Retail PO with an unfulfilled quantity and no firm remainder date, "
-                       "within the maximum permissible backorder delay.",
-                       "high", None, ("backorder_reconciliation",))
+                return out(
+                    _ESCALATE,
+                    "Backorders are not permitted on wholesale POs and no later "
+                    "delivery window has been agreed.",
+                    "high",
+                    "Wholesale Planning Lead",
+                    ("backorder_reconciliation", "merch_escalation_matrix"),
+                )
+            return out(
+                "raise_backorder",
+                "Retail PO with an unfulfilled quantity and no firm remainder date, "
+                "within the maximum permissible backorder delay.",
+                "high",
+                None,
+                ("backorder_reconciliation",),
+            )
 
-        return out("amend",
-                   "Variance sits within the minor tier and the amended value is below the "
-                   "planner self-approval ceiling.",
-                   "high", None, ("po_amendment_policy", "variance_detection_sop"))
+        return out(
+            "amend",
+            "Variance sits within the minor tier and the amended value is below the "
+            "planner self-approval ceiling.",
+            "high",
+            None,
+            ("po_amendment_policy", "variance_detection_sop"),
+        )
 
     @staticmethod
     def _available_citations(messages: Sequence[BaseMessage]) -> list[str]:
@@ -185,7 +223,11 @@ class ScriptedChatModel(BaseChatModel):
                 if hit["citation"] not in found:
                     found.append(hit["citation"])
         for msg in messages:
-            if msg.type == "human" and isinstance(msg.content, str) and msg.content.startswith("REFERENCE DATA"):
+            if (
+                msg.type == "human"
+                and isinstance(msg.content, str)
+                and msg.content.startswith("REFERENCE DATA")
+            ):
                 for cid in re.findall(r"^--- ([a-z_]+\.md §\d+)", msg.content, re.MULTILINE):
                     if cid not in found:
                         found.append(cid)
@@ -194,7 +236,6 @@ class ScriptedChatModel(BaseChatModel):
     @staticmethod
     def _contradiction_in_context(messages: Sequence[BaseMessage]) -> bool:
         return any(
-            isinstance(m.content, str)
-            and "CONFLICTING POLICY THRESHOLDS DETECTED" in m.content
+            isinstance(m.content, str) and "CONFLICTING POLICY THRESHOLDS DETECTED" in m.content
             for m in messages
         )

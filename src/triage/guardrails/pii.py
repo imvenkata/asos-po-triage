@@ -2,8 +2,9 @@
 
 Design note - the load-bearing control is redaction at INDEX time, not filtering
 at output time. Contact details from the escalation matrix are stripped before a
-chunk can ever enter the context window, so there is no prompt-injection or
-jailbreak path to them: the model is never shown the data. The output scan in
+chunk can enter the context window, reducing exposure through retrieved policy.
+This is not a universal PII detector: unknown names and unusual formats can be
+missed, and user questions may contain data from other sources. The output scan in
 `scan_for_pii` is defence in depth for the case where PII reaches the answer by
 some other route (e.g. pasted into the user's question).
 
@@ -11,6 +12,7 @@ Emails are the anchor for detection. Corporate addresses are firstname.lastname,
 so the local part yields the person's name without needing an NER model, and the
 same registry then powers the output scan.
 """
+
 from __future__ import annotations
 
 import re
@@ -19,9 +21,7 @@ from pathlib import Path
 
 EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.]+\b")
 # "Priya Raman — priya.raman@asos.com" / "James Fenwick, james.fenwick@asos.com"
-ADJACENT_NAME_RE = re.compile(
-    r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s*[—\-,–:]\s*(?=[\w.+-]+@)"
-)
+ADJACENT_NAME_RE = re.compile(r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s*[—\-,–:]\s*(?=[\w.+-]+@)")
 PHONE_RE = re.compile(r"(?<![\w£])(?:\+\d[\d ().-]{7,}\d|0\d[\d ().-]{7,}\d)(?!\w)")
 
 EMAIL_TOKEN = "[REDACTED_EMAIL]"

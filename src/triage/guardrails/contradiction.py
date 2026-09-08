@@ -2,15 +2,16 @@
 
 Detects the case the assessment plants deliberately: two policy sections that
 state different thresholds for the same decision. This runs deterministically
-over the retrieved chunks BEFORE the model answers, so the conflict is a fact in
-the prompt rather than something we hope the model notices - and it is enforced
-again after the model answers, so a model that misses it still cannot auto-action.
+over the corpus for conflict closure and over the fetched PO's figures in the
+get_po result. The final gate independently enforces known material conflicts.
+This controls the targeted thresholds even when the model misses them.
 
 Scope, stated honestly: this is a targeted extractor over named policy
 dimensions, not general natural-language inference. It is precise on the
 dimensions it knows and blind to conflicts expressed in prose it has no anchor
 for. See WRITEUP.md for how I would generalise it.
 """
+
 from __future__ import annotations
 
 import re
@@ -79,9 +80,7 @@ class ThresholdConflict:
     claims: tuple[ThresholdClaim, ...]
 
     def describe(self) -> str:
-        parts = " vs ".join(
-            f"{c.value:g}{c.dimension.unit} [{c.chunk_id}]" for c in self.claims
-        )
+        parts = " vs ".join(f"{c.value:g}{c.dimension.unit} [{c.chunk_id}]" for c in self.claims)
         return f"{self.dimension.label}: {parts}"
 
     @property
@@ -122,9 +121,7 @@ def _extract(chunk: Chunk) -> list[ThresholdClaim]:
             if not any(a in low for a in dim.anchors):
                 continue
             for value in re.findall(dim.unit_pattern, low):
-                claims.append(
-                    ThresholdClaim(dim, float(value), chunk.chunk_id, sentence)
-                )
+                claims.append(ThresholdClaim(dim, float(value), chunk.chunk_id, sentence))
     return claims
 
 

@@ -8,8 +8,9 @@ verifiable by set membership.
 
 Corpus sections here are short enough to index whole (largest is well under a
 typical 512-token target), so there is no sub-splitting step; the guard below
-    rejects oversized sections rather than silently truncating them.
+rejects oversized sections rather than silently truncating them.
 """
+
 from __future__ import annotations
 
 import re
@@ -22,7 +23,7 @@ from ..models import Chunk
 log = get_logger("ingest.chunker")
 
 SECTION_RE = re.compile(r"^##\s*§(?P<num>\d+)\.?\s*(?P<title>.*)$", re.MULTILINE)
-# Roughly 4 chars/token; warn well before a typical embedding context limit.
+# Character budget for this corpus; not an exact token-count guarantee.
 MAX_CHUNK_CHARS = 6000
 
 
@@ -48,7 +49,9 @@ def chunk_document(path: Path, registry: PiiRegistry | None = None) -> list[Chun
     chunks: list[Chunk] = []
     for section, heading, body in spans:
         if len(body) > MAX_CHUNK_CHARS:
-            raise ValueError(f"{doc} §{section} exceeds the chunk size limit; split it before indexing.")
+            raise ValueError(
+                f"{doc} §{section} exceeds the chunk size limit; split it before indexing."
+            )
         was_redacted = False
         if registry is not None:
             body, was_redacted = redact(body, registry)

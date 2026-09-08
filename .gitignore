@@ -7,3 +7,6 @@ venv/
 .index_cache/
 *.egg-info/
 .DS_Store
+docs/
+pytest_cache/
+.ruff_cache/

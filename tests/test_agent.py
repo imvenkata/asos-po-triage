@@ -72,19 +72,27 @@ def test_fabricated_citation_blocks_the_auto_action(settings, index):
 def test_harvest_extracts_the_submission_and_trace():
     messages = [
         HumanMessage(content="what about PO-10342?"),
-        AIMessage(content="", tool_calls=[
-            {"name": "get_po", "args": {"po_id": "PO-10342"}, "id": "1"}
-        ]),
-        ToolMessage(content='{}', name="get_po", tool_call_id="1", status="success"),
-        AIMessage(content="", tool_calls=[{
-            "name": TERMINAL_TOOL,
-            "args": {
-                "po_id": "PO-10342", "recommended_action": "escalate",
-                "rationale": "x", "citations": ["po_amendment_policy.md §2"],
-                "confidence": "low", "escalation_target_role": "Senior Merch Planner",
-            },
-            "id": "2",
-        }]),
+        AIMessage(
+            content="", tool_calls=[{"name": "get_po", "args": {"po_id": "PO-10342"}, "id": "1"}]
+        ),
+        ToolMessage(content="{}", name="get_po", tool_call_id="1", status="success"),
+        AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "name": TERMINAL_TOOL,
+                    "args": {
+                        "po_id": "PO-10342",
+                        "recommended_action": "escalate",
+                        "rationale": "x",
+                        "citations": ["po_amendment_policy.md §2"],
+                        "confidence": "low",
+                        "escalation_target_role": "Senior Merch Planner",
+                    },
+                    "id": "2",
+                }
+            ],
+        ),
         ToolMessage(content="accepted", name=TERMINAL_TOOL, tool_call_id="2", status="success"),
     ]
     raw, tool_log, steps, _ = TriageAgent._harvest(messages)
@@ -97,12 +105,22 @@ def test_invalid_submission_is_not_harvested():
     """A malformed payload reaches the gate as 'no valid submission' rather than
     being passed through as if it were valid."""
     messages = [
-        AIMessage(content="", tool_calls=[{
-            "name": TERMINAL_TOOL,
-            "args": {"po_id": "PO-1", "recommended_action": "teleport",
-                     "rationale": "x", "citations": [], "confidence": "low"},
-            "id": "1",
-        }]),
+        AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "name": TERMINAL_TOOL,
+                    "args": {
+                        "po_id": "PO-1",
+                        "recommended_action": "teleport",
+                        "rationale": "x",
+                        "citations": [],
+                        "confidence": "low",
+                    },
+                    "id": "1",
+                }
+            ],
+        ),
     ]
     raw, tool_log, _, _ = TriageAgent._harvest(messages)
     assert raw is None

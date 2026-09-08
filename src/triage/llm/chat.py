@@ -3,6 +3,7 @@
 Returns a LangChain `BaseChatModel`, which is what the agent graph binds tools
 to. Provider selection is the only thing that varies.
 """
+
 from __future__ import annotations
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -30,26 +31,29 @@ def build_chat_model(settings: Settings | None = None) -> BaseChatModel:
         from langchain_openai import AzureChatOpenAI
 
         missing = [
-            k for k, v in {
+            k
+            for k, v in {
                 "AZURE_OPENAI_ENDPOINT": settings.azure_openai_endpoint,
                 "AZURE_OPENAI_API_KEY": settings.azure_openai_api_key,
-            }.items() if not v
+            }.items()
+            if not v
         ]
         if missing:
             raise LLMError(
                 f"Azure OpenAI selected but {', '.join(missing)} not set. Copy "
                 ".env.example to .env, or run with TRIAGE_LLM_PROVIDER=scripted."
             )
-        # `temperature` is left unset deliberately. Reasoning-family deployments
-        # reject any explicit value, and langchain-openai omits the parameter
-        # when it is None.
+        # This configured deployment rejected explicit temperature in testing.
+        # None lets langchain-openai omit it; other deployments may differ.
         return AzureChatOpenAI(
             azure_endpoint=settings.azure_openai_endpoint,
             api_key=settings.azure_openai_api_key,
             api_version=settings.azure_openai_api_version,
             azure_deployment=settings.azure_openai_chat_deployment,
             timeout=settings.triage_request_timeout_s,
-            max_retries=1,
+            # Hidden retries cannot be reconciled against per-call usage.
+            max_retries=0,
+            max_completion_tokens=settings.triage_max_output_tokens,
             temperature=None,
         )
 
@@ -61,7 +65,8 @@ def build_chat_model(settings: Settings | None = None) -> BaseChatModel:
         api_key=settings.openai_api_key,
         model=settings.openai_chat_model,
         timeout=settings.triage_request_timeout_s,
-        max_retries=1,
+        max_retries=0,
+        max_completion_tokens=settings.triage_max_output_tokens,
         temperature=None,
     )
 

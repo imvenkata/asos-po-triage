@@ -9,6 +9,7 @@ Cheap to run - embeddings only, no chat calls, no agent loops.
 
     python evals/calibrate_threshold.py
 """
+
 from __future__ import annotations
 
 import sys
@@ -86,18 +87,21 @@ def main() -> int:
     scored += [(q, max_cosine(q), False) for q in OUT_OF_SCOPE]
 
     table = Table(title="Max cosine by question", header_style="bold")
-    table.add_column("label"); table.add_column("cosine", justify="right")
+    table.add_column("label")
+    table.add_column("cosine", justify="right")
     table.add_column("question", overflow="fold")
     for q, score, in_scope in sorted(scored, key=lambda r: -r[1]):
-        table.add_row(
-            "[green]in[/]" if in_scope else "[yellow]out[/]", f"{score:.4f}", q[:78]
-        )
+        table.add_row("[green]in[/]" if in_scope else "[yellow]out[/]", f"{score:.4f}", q[:78])
     console.print(table)
 
     lo = [s for _, s, ok in scored if ok]
     hi = [s for _, s, ok in scored if not ok]
-    console.print(f"\nin-scope     min={min(lo):.4f}  max={max(lo):.4f}  mean={sum(lo)/len(lo):.4f}")
-    console.print(f"out-of-scope min={min(hi):.4f}  max={max(hi):.4f}  mean={sum(hi)/len(hi):.4f}")
+    console.print(
+        f"\nin-scope     min={min(lo):.4f}  max={max(lo):.4f}  mean={sum(lo) / len(lo):.4f}"
+    )
+    console.print(
+        f"out-of-scope min={min(hi):.4f}  max={max(hi):.4f}  mean={sum(hi) / len(hi):.4f}"
+    )
 
     # Sweep every midpoint between adjacent observed scores.
     points = sorted({s for _, s, _ in scored})

@@ -16,6 +16,7 @@ already have.) Keeping the raw component scores through fusion is the whole
 point - discarding them is exactly the bug that made the grounding gate
 unfireable in the first version. See guardrails/grounding.py.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

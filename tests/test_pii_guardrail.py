@@ -1,4 +1,5 @@
 """The PII guardrail is the one that must not have a bad day."""
+
 import pytest
 from pydantic import ValidationError
 

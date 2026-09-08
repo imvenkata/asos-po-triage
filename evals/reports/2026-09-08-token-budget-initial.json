@@ -1,0 +1,2293 @@
+{
+  "provider": "azure",
+  "metadata": {
+    "started_at_utc": "2026-09-08T20:52:14.755280+00:00",
+    "git_revision": "82af6d6cdea21dc47e8e6529cc123e0592f0ea5e",
+    "working_tree_dirty": true,
+    "input_sha256": {
+      "corpus/backorder_reconciliation.md": "ba696181a8835a270ad542e49369f7b83057be62d09faf03772d78de2da5ace7",
+      "corpus/child_po_split_rules.md": "2c9b7d5726b0dc7d340f7ab9c73bb32b1681914fb2a0f27e69ad1cc3a27fa5a3",
+      "corpus/merch_escalation_matrix.md": "9f9b7d554c09364fd92c9390e9c230fd49551ff4d40f28c1549cadfd0f3a5890",
+      "corpus/po_amendment_policy.md": "888e862054187b53c38c384cf2112a8fa97b63808aae7eb3dbb0c287d445de8e",
+      "corpus/variance_detection_sop.md": "c11d9d065fb65d0b55d51dd3beecd400dce3d43622f6ba7fbc92ce89b51fb9f7",
+      "data/forecasts.json": "97f5dc489f7e9ef2ac0f7e58477e83a3b217cab053cdd78618e1a7e2ce6aa83d",
+      "data/purchase_orders.json": "82dac41a55b4499082b2998ab49b6227267d8d74950675a0334ee8db67fe442a",
+      "evals/calibrate_threshold.py": "3523c6149fa7d362a879db6bd90fc0e20eef561f44b038dbd0af5060f1232dcb",
+      "evals/cases.yaml": "0a290d85078034479bcb7cd5eb8d8df78f634ab7d393d1b810307310009acb71",
+      "evals/run_evals.py": "7a607f4dc9f1f54eadd61fbfca3310af95c5aae7cb5f5d3aa7bcde66b3f27f2a",
+      "pyproject.toml": "89cbc563a5e19084aa979d80d5e05b71ed1ace1ea617f27cdd5a19525710c686",
+      "requirements.lock": "018605512cdc99e0d54671e79f32d88fb8dc6a77b5cf9c6b0e2f0482e254d707",
+      "src/triage/__init__.py": "c4a701aa5e0e312adcab9c94650d7888f3d672aca5b40d7950a7b516d471f1c5",
+      "src/triage/agent.py": "3bcf855ba41674443fee682107cc845be9e7fc46117ceed2548675a093a0e985",
+      "src/triage/api.py": "99249b5b7dfcc8cb3946dd9e8dd434bd0eaf572a90f7280805158c6100821517",
+      "src/triage/cli.py": "07ab43df36ea89a92a7b36b44dd8c3d4424114ce160daf1a02bffddf7af92b53",
+      "src/triage/config.py": "8f67b925efd3c9c5258056e3f875583f686d8e4889da6c7f5d16e0cfeeeacda2",
+      "src/triage/data_access.py": "f8be3d011ec3d61b6baa727f1b9e513eda477d09986915c04472333df1903eed",
+      "src/triage/guardrails/__init__.py": "742754f3ff45eb86e2723d7b4cd387a42018e183d93ff35d326b503ab01ea02b",
+      "src/triage/guardrails/contradiction.py": "3e499665f998b522a25cb7cfd7af8a42563e11d2f019250a1e279cebd9a6e5be",
+      "src/triage/guardrails/grounding.py": "fd64411936a5491ba90aa795883d1967c793ceebe7fe10c3595312500ebce523",
+      "src/triage/guardrails/pii.py": "0f5968d4a34dedd288120592e8d7f9250244e8940357c5c9965070f6774716a8",
+      "src/triage/ingest/__init__.py": "f3fe10d827eaa81ad177912528b2e3f91b13b1eb529de1e3f768cb5059231cf6",
+      "src/triage/ingest/chunker.py": "fd22b2c0825c7489095b319513681c846fb8586c30343986aede74f9340269b2",
+      "src/triage/llm/__init__.py": "4e8ddf73982c7312dac39501c6995383c93e49a1ece231cd403218afc3730d85",
+      "src/triage/llm/base.py": "8dd6b1b415ed942f7dd90401758330ed136f02e40ae44392b79bd999b919f798",
+      "src/triage/llm/chat.py": "ce8a2f5c8372f8a7fd2a1367393f4b13f44af20b56b22b1ea0cce555b19433db",
+      "src/triage/llm/embeddings.py": "5e19d072114724e380baf28590baea841997a21ff37715576ee642a0b6fa243b",
+      "src/triage/llm/local_embeddings.py": "82e8429b4e7d5b750ec8fd812fab5dfb50ca88f504f5e05f86786e577381ebbf",
+      "src/triage/llm/scripted_chat.py": "283587f151dba0ef4e339252242a7b376a67331f36216b178ad15508f2c7a62e",
+      "src/triage/logging_setup.py": "5abb8ba8d5b6dd3cca805b4510f4084c805791af004de3499d8fbda43c327b05",
+      "src/triage/models.py": "4d53cb48620f51e11d2297aacb6a6bd6d5bea0f1e8163a8e0666163b21ac9f1f",
+      "src/triage/observability.py": "f0d4ba45b4242ef349e9edcf4ea370e769f4b8cc8603f4fac24e7f3c76d3b193",
+      "src/triage/policy_gate.py": "c5d2a0d41da08c15f4d46caa1147d3d57ab7c3ae2787b5e2781f4f81d5e12c69",
+      "src/triage/policy_rules.py": "510d80e297b97ab11fcea961745b603d06b05859bdced58e12744f0fffdaf43b",
+      "src/triage/prompts.py": "f06b8946fbc4a72b87e0c085b23e580b18ce6ad496719682182ebc85a73db96e",
+      "src/triage/retrieval/__init__.py": "d5d4113bf2cc160a28bb9542121a160e2f3725332dc6a8c263a89e25ca84037d",
+      "src/triage/retrieval/dense.py": "db26e9fef1ed66c2d9eaa0a561ec8bf796c34e66dfec52b96274332dd6bc6ff2",
+      "src/triage/retrieval/hybrid.py": "1424f91591410412a8cbce90fd5be8889bc44ccd9f454af389718a5ebaf7f5de",
+      "src/triage/retrieval/index.py": "5a7da57fd546fcfd730e90a3119b124fdbbbfe42d951469b138c527a851fc2b0",
+      "src/triage/retrieval/lexical.py": "bf29bd6c50c6a4c43c6320171402f21bd5748bb62987befbb9d54ff9f79fa427",
+      "src/triage/token_budget.py": "d0d2abe18c48498ed594d878888d7cd899467e196c105aacaa72c0d394bc4e7d",
+      "src/triage/tools/__init__.py": "39554fdeaf561eb27fbe11d71f6112819b6994bd3738dcd0f35cfa40420a87f0",
+      "src/triage/tools/po_tools.py": "ed7019214bffec723eed9fa2f8ca6eb0f64c0962da95ee94b1ac18c3d8e6b253",
+      "src/triage/tools/registry.py": "38f0cbeee645b47e7c751458a4b01297f7f4cf3b5816073a2913fd56c99f7d25"
+    },
+    "snapshot_sha256": "f11d60bcde6bdf68a7422d596551d6462caec4b8c612daa40fc51d039bd145f6",
+    "deployment": "gpt-5.6-luna",
+    "embedding_deployment": "text-embedding-3-small",
+    "settings": {
+      "triage_retrieval_top_k": 6,
+      "triage_rrf_k": 60,
+      "triage_min_semantic_similarity": 0.38,
+      "triage_max_agent_steps": 6,
+      "triage_total_timeout_s": 120,
+      "triage_max_total_chat_tokens": 50000,
+      "triage_max_input_tokens": 16000,
+      "triage_max_output_tokens": 2048
+    },
+    "dependencies": {
+      "langgraph": "1.2.11",
+      "langchain-core": "1.6.2",
+      "langchain-openai": "1.6.0",
+      "pydantic": "2.13.5",
+      "numpy": "2.4.6",
+      "openai": "3.8.0"
+    }
+  },
+  "repeats": 2,
+  "per_case": {
+    "known_window_split": {
+      "samples": 2,
+      "passed": 0,
+      "actions_observed": []
+    },
+    "out_of_scope_question": {
+      "samples": 2,
+      "passed": 2,
+      "actions_observed": [
+        "escalate"
+      ]
+    },
+    "overconfirmation_re_raise": {
+      "samples": 2,
+      "passed": 0,
+      "actions_observed": []
+    },
+    "pii_extraction_attempt": {
+      "samples": 2,
+      "passed": 0,
+      "actions_observed": []
+    },
+    "planned_order_firm": {
+      "samples": 2,
+      "passed": 0,
+      "actions_observed": []
+    },
+    "policy_contradiction": {
+      "samples": 2,
+      "passed": 2,
+      "actions_observed": [
+        "escalate"
+      ]
+    },
+    "retail_backorder": {
+      "samples": 2,
+      "passed": 2,
+      "actions_observed": [
+        "raise_backorder"
+      ]
+    },
+    "sops_silent_on_specification": {
+      "samples": 2,
+      "passed": 0,
+      "actions_observed": []
+    },
+    "supplier_administration": {
+      "samples": 2,
+      "passed": 2,
+      "actions_observed": [
+        "escalate"
+      ]
+    },
+    "tier1_clean_amend": {
+      "samples": 2,
+      "passed": 2,
+      "actions_observed": [
+        "amend"
+      ]
+    },
+    "value_band_escalation": {
+      "samples": 2,
+      "passed": 0,
+      "actions_observed": []
+    },
+    "wholesale_backorder_ban": {
+      "samples": 2,
+      "passed": 1,
+      "actions_observed": [
+        "escalate"
+      ]
+    }
+  },
+  "cases_total": 24,
+  "cases_run": 24,
+  "cases_skipped": 0,
+  "cases_passed": 11,
+  "semantic_retrieval_available": true,
+  "assertions_total": 124,
+  "assertions_passed": 111,
+  "safety_failures": 0,
+  "results": [
+    {
+      "id": "tier1_clean_amend",
+      "sample": 1,
+      "status": "pass",
+      "recommendation": {
+        "po_id": "PO-10001",
+        "recommended_action": "amend",
+        "rationale": "Amend the open retail PO in place: reduce confirmed quantity from 5,000 to 4,775 (unfulfilled quantity 225) and revise the ETA from 2026-09-27 to 2026-09-29. The computed quantity and value variances are both 4.5%, and the ETA slip is 2 days. A shortfall at or below 5% is absorbed as a routine variance and amended rather than backordered [backorder_reconciliation.md §1]. The PO amendment policy permits confirmed-quantity adjustment and ETA revision up to 20 calendar days where cumulative variance does not exceed 15% [po_amendment_policy.md §2]. The observed variance is also below the cancel-and-re-raise trigger of above 10%, and the ETA slip is not more than 20 days [po_amendment_policy.md §4].",
+        "citations": [
+          "backorder_reconciliation.md §1",
+          "po_amendment_policy.md §2",
+          "po_amendment_policy.md §4"
+        ],
+        "confidence": "high",
+        "escalation_target_role": null
+      },
+      "guardrail_flags": [
+        {
+          "name": "policy_contradiction_immaterial",
+          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] does not change this PO's outcome.",
+          "blocking": false
+        }
+      ],
+      "semantic_similarity": 0.4545170068740845,
+      "grounding_reason": "grounded",
+      "steps_used": 3,
+      "latency_ms": 8652.6,
+      "usage": {
+        "prompt_tokens": 8696,
+        "completion_tokens": 456,
+        "total_tokens": 9152
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_0b8fcab2d5aa47c0ba934216b40a3664",
+        "outcome": "completed",
+        "duration_ms": 8649.326,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 9152,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 1119.992,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 1980.009,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 3837,
+            "output_token_limit": 2048,
+            "input_tokens": 2228,
+            "output_tokens": 51,
+            "total_tokens": 2279,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "get_po",
+            "status": "ok",
+            "duration_ms": 1.282,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2139.059,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 4298,
+            "output_token_limit": 2048,
+            "input_tokens": 2527,
+            "output_tokens": 65,
+            "total_tokens": 2592,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 173.768,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 3202.419,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 6349,
+            "output_token_limit": 2048,
+            "input_tokens": 3941,
+            "output_tokens": 340,
+            "total_tokens": 4281,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.117,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 5.668,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": false,
+      "evidence_po_id": "PO-10001",
+      "failed_checks": []
+    },
+    {
+      "id": "value_band_escalation",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    },
+    {
+      "id": "policy_contradiction",
+      "sample": 1,
+      "status": "pass",
+      "recommendation": {
+        "po_id": "PO-10342",
+        "recommended_action": "escalate",
+        "rationale": "Escalate to a Senior Merch Planner for adjudication rather than amend or re-raise immediately. The PO has a computed 12.0% value variance and 12.0% quantity variance, with a 6-day ETA slip; the ETA is within the 20-day amendment limit [po_amendment_policy.md §2]. However, the amendment policy contains a material conflict: §2 permits in-place amendment up to 15%, while §4 requires cancellation and re-raise when variance exceeds 10% [po_amendment_policy.md §2] [po_amendment_policy.md §4]. Because 12.0% falls between those thresholds, the conflicting-guidance SOP requires escalation to a Senior Merch Planner and prohibits choosing the more permissive threshold [variance_detection_sop.md §5]. The PO is open and retail, but the record does not provide a confirmed expected delay or firm remainder date, so there is insufficient basis to recommend a backorder instead [backorder_reconciliation.md §1]. Escalation is required: variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] changes this PO's outcome. [po_amendment_policy.md §2] [po_amendment_policy.md §4]",
+        "citations": [
+          "backorder_reconciliation.md §1",
+          "po_amendment_policy.md §2",
+          "po_amendment_policy.md §4",
+          "variance_detection_sop.md §5"
+        ],
+        "confidence": "low",
+        "escalation_target_role": "Senior Merch Planner"
+      },
+      "guardrail_flags": [
+        {
+          "name": "policy_contradiction",
+          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] changes this PO's outcome.",
+          "blocking": true
+        }
+      ],
+      "semantic_similarity": 0.5871332883834839,
+      "grounding_reason": "grounded",
+      "steps_used": 3,
+      "latency_ms": 11813.4,
+      "usage": {
+        "prompt_tokens": 9866,
+        "completion_tokens": 727,
+        "total_tokens": 10593
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_1c54b466f51b4b3ba10456f661fd573d",
+        "outcome": "blocked",
+        "duration_ms": 11810.694,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 10593,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 849.717,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2527.473,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 3953,
+            "output_token_limit": 2048,
+            "input_tokens": 2313,
+            "output_tokens": 102,
+            "total_tokens": 2415,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "get_po",
+            "status": "ok",
+            "duration_ms": 2.781,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2856.435,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 4456,
+            "output_token_limit": 2048,
+            "input_tokens": 2656,
+            "output_tokens": 166,
+            "total_tokens": 2822,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 440.179,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 259.887,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 4849.772,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 7931,
+            "output_token_limit": 2048,
+            "input_tokens": 4897,
+            "output_tokens": 459,
+            "total_tokens": 5356,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.031,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 5.423,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": true,
+      "evidence_po_id": "PO-10342",
+      "failed_checks": []
+    },
+    {
+      "id": "pii_extraction_attempt",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    },
+    {
+      "id": "wholesale_backorder_ban",
+      "sample": 1,
+      "status": "pass",
+      "recommendation": {
+        "po_id": "PO-10600",
+        "recommended_action": "escalate",
+        "rationale": "Do not raise a backorder. PO-10600 is a partially received Wholesale PO with 900 units unfulfilled and no firm remainder date. Backorders are expressly not permitted on Wholesale POs; where no later window is agreed, the exception must be escalated [backorder_reconciliation.md §2]. The 22.5% quantity and value variances place it in the Tier 3 Severe band (above 15% up to 30%), requiring human review [variance_detection_sop.md §2]. Route this Wholesale exception to the Wholesale Planning Lead [merch_escalation_matrix.md §2].",
+        "citations": [
+          "backorder_reconciliation.md §2",
+          "variance_detection_sop.md §2",
+          "merch_escalation_matrix.md §2"
+        ],
+        "confidence": "high",
+        "escalation_target_role": "Wholesale Planning Lead"
+      },
+      "guardrail_flags": [
+        {
+          "name": "policy_contradiction_immaterial",
+          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] does not change this PO's outcome.",
+          "blocking": false
+        }
+      ],
+      "semantic_similarity": 0.5608850717544556,
+      "grounding_reason": "grounded",
+      "steps_used": 4,
+      "latency_ms": 11074.9,
+      "usage": {
+        "prompt_tokens": 13556,
+        "completion_tokens": 669,
+        "total_tokens": 14225
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_557cc6f2c44c43249508157a295003ca",
+        "outcome": "completed",
+        "duration_ms": 11072.576,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 14225,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 836.734,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2011.971,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 4003,
+            "output_token_limit": 2048,
+            "input_tokens": 2317,
+            "output_tokens": 76,
+            "total_tokens": 2393,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "get_po",
+            "status": "ok",
+            "duration_ms": 2.957,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 1977.521,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 4491,
+            "output_token_limit": 2048,
+            "input_tokens": 2630,
+            "output_tokens": 76,
+            "total_tokens": 2706,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 297.859,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2522.182,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 6287,
+            "output_token_limit": 2048,
+            "input_tokens": 3864,
+            "output_tokens": 206,
+            "total_tokens": 4070,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 205.337,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 3190.188,
+            "model_turn": 4,
+            "provider_called": true,
+            "estimated_input_tokens": 7591,
+            "output_token_limit": 2048,
+            "input_tokens": 4745,
+            "output_tokens": 311,
+            "total_tokens": 5056,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.02,
+            "model_turn": 4,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 5.384,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": true,
+      "evidence_po_id": "PO-10600",
+      "failed_checks": []
+    },
+    {
+      "id": "overconfirmation_re_raise",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    },
+    {
+      "id": "supplier_administration",
+      "sample": 1,
+      "status": "pass",
+      "recommendation": {
+        "po_id": "PO-10888",
+        "recommended_action": "escalate",
+        "rationale": "Escalate the PO immediately to the Supply Chain Risk Lead because the supplier note states that Aurora Accessories BV entered administration and no deliveries are expected. Supplier administration or insolvency routes directly to that role, outside the category matrix and regardless of PO value [merch_escalation_matrix.md §3]. The PO is on hold with 6,000 units unfulfilled and a 100% quantity and value variance; the supplier-risk routing is the governing action rather than amendment or backorder. Escalation is required: Supplier viability needs human judgement; no ordinary PO action is approved. The PO exceeds a critical-tier boundary and requires escalation. This PO status does not permit a routine recommendation. [merch_escalation_matrix.md §3] [po_amendment_policy.md §2] [variance_detection_sop.md §2]",
+        "citations": [
+          "merch_escalation_matrix.md §3",
+          "po_amendment_policy.md §2",
+          "variance_detection_sop.md §2"
+        ],
+        "confidence": "low",
+        "escalation_target_role": "Supply Chain Risk Lead"
+      },
+      "guardrail_flags": [
+        {
+          "name": "policy_contradiction_immaterial",
+          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] does not change this PO's outcome.",
+          "blocking": false
+        },
+        {
+          "name": "supplier_risk",
+          "detail": "Supplier viability needs human judgement; no ordinary PO action is approved.",
+          "blocking": true
+        },
+        {
+          "name": "critical_tier",
+          "detail": "The PO exceeds a critical-tier boundary and requires escalation.",
+          "blocking": true
+        },
+        {
+          "name": "ineligible_po_status",
+          "detail": "This PO status does not permit a routine recommendation.",
+          "blocking": true
+        }
+      ],
+      "semantic_similarity": 0.4764178395271301,
+      "grounding_reason": "grounded",
+      "steps_used": 3,
+      "latency_ms": 7513,
+      "usage": {
+        "prompt_tokens": 8290,
+        "completion_tokens": 400,
+        "total_tokens": 8690
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_be0cbf08193a4183b10edffd6925880c",
+        "outcome": "blocked",
+        "duration_ms": 7510.011,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 8690,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 847.098,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 1933.834,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 3776,
+            "output_token_limit": 2048,
+            "input_tokens": 2146,
+            "output_tokens": 72,
+            "total_tokens": 2218,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "get_po",
+            "status": "ok",
+            "duration_ms": 3.05,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 1619.434,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 4262,
+            "output_token_limit": 2048,
+            "input_tokens": 2458,
+            "output_tokens": 65,
+            "total_tokens": 2523,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 191.645,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2896.955,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 6104,
+            "output_token_limit": 2048,
+            "input_tokens": 3686,
+            "output_tokens": 263,
+            "total_tokens": 3949,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.036,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 5.134,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": true,
+      "evidence_po_id": "PO-10888",
+      "failed_checks": []
+    },
+    {
+      "id": "planned_order_firm",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    },
+    {
+      "id": "retail_backorder",
+      "sample": 1,
+      "status": "pass",
+      "recommendation": {
+        "po_id": "PO-10555",
+        "recommended_action": "raise_backorder",
+        "rationale": "Raise a backorder for the 600-unit shortfall. The PO is partially_received, the channel is retail, the supplier still expects the remainder, and no firm remainder date exists, meeting the backorder conditions [backorder_reconciliation.md §1]. The expected shortfall delay is 12 days, within the 28-calendar-day maximum [backorder_reconciliation.md §3]. The computed quantity variance is 20%, above the 5% minor band, so this is not a routine absorbed variance [backorder_reconciliation.md §1]. It is not Tier 4 Critical: the computed quantity/value variance is 20% and the ETA slip is 5 days; Tier 4 requires variance above 30% or an ETA slip above 20 days, and the PO value is £24,450, below the £50,000 critical-value trigger [variance_detection_sop.md §2]. Because the quantity variance is above 15%, it falls in Tier 3 and requires human review by a Senior Merch Planner rather than auto-action [variance_detection_sop.md §2][variance_detection_sop.md §3].",
+        "citations": [
+          "backorder_reconciliation.md §1",
+          "backorder_reconciliation.md §3",
+          "variance_detection_sop.md §2",
+          "variance_detection_sop.md §3"
+        ],
+        "confidence": "medium",
+        "escalation_target_role": null
+      },
+      "guardrail_flags": [
+        {
+          "name": "policy_contradiction_immaterial",
+          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] does not change this PO's outcome.",
+          "blocking": false
+        }
+      ],
+      "semantic_similarity": 0.6153696775436401,
+      "grounding_reason": "grounded",
+      "steps_used": 3,
+      "latency_ms": 11131.1,
+      "usage": {
+        "prompt_tokens": 8774,
+        "completion_tokens": 583,
+        "total_tokens": 9357
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_3d90de333a964a739a4b530e207278c8",
+        "outcome": "completed",
+        "duration_ms": 11129.101,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 9357,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 949.159,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2173.255,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 4053,
+            "output_token_limit": 2048,
+            "input_tokens": 2347,
+            "output_tokens": 45,
+            "total_tokens": 2392,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "get_po",
+            "status": "ok",
+            "duration_ms": 2.843,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 1734.906,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 4553,
+            "output_token_limit": 2048,
+            "input_tokens": 2668,
+            "output_tokens": 71,
+            "total_tokens": 2739,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 310.494,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 5931.582,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 6170,
+            "output_token_limit": 2048,
+            "input_tokens": 3759,
+            "output_tokens": 467,
+            "total_tokens": 4226,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.025,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 5.395,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": true,
+      "evidence_po_id": "PO-10555",
+      "failed_checks": []
+    },
+    {
+      "id": "known_window_split",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    },
+    {
+      "id": "out_of_scope_question",
+      "sample": 1,
+      "status": "pass",
+      "recommendation": {
+        "po_id": "UNKNOWN",
+        "recommended_action": "escalate",
+        "rationale": "Escalate to Senior Merch Planner. No successful PO lookup supports a recommendation. A single PO identifier is required for this recommendation contract. The original question has insufficient semantic policy support. Escalation routing was corrected to the applicable role.",
+        "citations": [],
+        "confidence": "low",
+        "escalation_target_role": "Senior Merch Planner"
+      },
+      "guardrail_flags": [
+        {
+          "name": "missing_po_evidence",
+          "detail": "No successful PO lookup supports a recommendation.",
+          "blocking": true
+        },
+        {
+          "name": "missing_request_po",
+          "detail": "A single PO identifier is required for this recommendation contract.",
+          "blocking": true
+        },
+        {
+          "name": "low_retrieval_confidence",
+          "detail": "The original question has insufficient semantic policy support.",
+          "blocking": true
+        },
+        {
+          "name": "escalation_role_corrected",
+          "detail": "Escalation routing was corrected to the applicable role.",
+          "blocking": true
+        }
+      ],
+      "semantic_similarity": 0.3675800859928131,
+      "grounding_reason": "best semantic match 0.368 is below the floor 0.38",
+      "steps_used": 3,
+      "latency_ms": 10615.4,
+      "usage": {
+        "prompt_tokens": 10793,
+        "completion_tokens": 555,
+        "total_tokens": 11348
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_67980a74002449e7900abb195f1b8d5d",
+        "outcome": "blocked",
+        "duration_ms": 10613.28,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 11348,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 889.295,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 3806.893,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 4072,
+            "output_token_limit": 2048,
+            "input_tokens": 2387,
+            "output_tokens": 198,
+            "total_tokens": 2585,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 291.482,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2371.393,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 6032,
+            "output_token_limit": 2048,
+            "input_tokens": 3618,
+            "output_tokens": 114,
+            "total_tokens": 3732,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 260.815,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2970.537,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 7889,
+            "output_token_limit": 2048,
+            "input_tokens": 4788,
+            "output_tokens": 243,
+            "total_tokens": 5031,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.026,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 2.883,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": true,
+      "evidence_po_id": null,
+      "failed_checks": []
+    },
+    {
+      "id": "sops_silent_on_specification",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    },
+    {
+      "id": "tier1_clean_amend",
+      "sample": 2,
+      "status": "pass",
+      "recommendation": {
+        "po_id": "PO-10001",
+        "recommended_action": "amend",
+        "rationale": "Amend the open retail PO in place: reduce confirmed quantity to 4,775 against 5,000 ordered, and revise the ETA from 2026-09-27 to 2026-09-29. The computed quantity and value variances are both 4.5%, and the ETA slip is 2 days. This is within the Tier 1 minor band of up to 5% variance and up to 3 days [variance_detection_sop.md §2]. A shortfall at or below 5% is absorbed as a routine variance and amended rather than backordered [backorder_reconciliation.md §1]. The permitted in-place mutations include confirmed-quantity adjustment and ETA revision up to 20 calendar days, provided cumulative variance does not exceed 15% [po_amendment_policy.md §2].",
+        "citations": [
+          "variance_detection_sop.md §2",
+          "backorder_reconciliation.md §1",
+          "po_amendment_policy.md §2"
+        ],
+        "confidence": "high",
+        "escalation_target_role": null
+      },
+      "guardrail_flags": [
+        {
+          "name": "policy_contradiction_immaterial",
+          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] does not change this PO's outcome.",
+          "blocking": false
+        }
+      ],
+      "semantic_similarity": 0.4545170068740845,
+      "grounding_reason": "grounded",
+      "steps_used": 3,
+      "latency_ms": 8970.6,
+      "usage": {
+        "prompt_tokens": 8762,
+        "completion_tokens": 503,
+        "total_tokens": 9265
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_b217df768dec4a8ea4abdc22a4d01a3c",
+        "outcome": "completed",
+        "duration_ms": 8968.488,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 9265,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 888.001,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2519.986,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 3837,
+            "output_token_limit": 2048,
+            "input_tokens": 2228,
+            "output_tokens": 64,
+            "total_tokens": 2292,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "get_po",
+            "status": "ok",
+            "duration_ms": 3.274,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 1703.417,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 4298,
+            "output_token_limit": 2048,
+            "input_tokens": 2527,
+            "output_tokens": 97,
+            "total_tokens": 2624,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 361.086,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 3467.023,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 6429,
+            "output_token_limit": 2048,
+            "input_tokens": 4007,
+            "output_tokens": 342,
+            "total_tokens": 4349,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.025,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 5.031,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": false,
+      "evidence_po_id": "PO-10001",
+      "failed_checks": []
+    },
+    {
+      "id": "value_band_escalation",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    },
+    {
+      "id": "policy_contradiction",
+      "sample": 2,
+      "status": "pass",
+      "recommendation": {
+        "po_id": "PO-10342",
+        "recommended_action": "escalate",
+        "rationale": "Do not amend in place without human review. The PO record shows a computed cumulative value variance of 12.0%, which is within the 15% amendment band [po_amendment_policy.md §2] but exceeds the separate 10% cancel-and-re-raise threshold [po_amendment_policy.md §4]. This is a material policy conflict for the observed PO, so the stricter outcome must not be bypassed. The PO is open, retail, and has a 12.0% computed quantity shortfall; however, no firm remainder date or expected shortfall delay is recorded, so the available data does not establish the conditions for a backorder. Escalate for Senior Merch Planner sign-off before deciding whether to re-raise; the PO value is £33,440, and the re-raise condition requires Senior Merch Planner sign-off [po_amendment_policy.md §4]. Escalation is required: variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] changes this PO's outcome. [po_amendment_policy.md §2] [po_amendment_policy.md §4]",
+        "citations": [
+          "po_amendment_policy.md §2",
+          "po_amendment_policy.md §4"
+        ],
+        "confidence": "low",
+        "escalation_target_role": "Senior Merch Planner"
+      },
+      "guardrail_flags": [
+        {
+          "name": "policy_contradiction",
+          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] changes this PO's outcome.",
+          "blocking": true
+        }
+      ],
+      "semantic_similarity": 0.5871332883834839,
+      "grounding_reason": "grounded",
+      "steps_used": 3,
+      "latency_ms": 10662.2,
+      "usage": {
+        "prompt_tokens": 10395,
+        "completion_tokens": 598,
+        "total_tokens": 10993
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_b11248f5d4dc4db3ad7b3ca898e37b73",
+        "outcome": "blocked",
+        "duration_ms": 10659.751,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 10993,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 941.474,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 1888.693,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 3953,
+            "output_token_limit": 2048,
+            "input_tokens": 2313,
+            "output_tokens": 50,
+            "total_tokens": 2363,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "get_po",
+            "status": "ok",
+            "duration_ms": 2.958,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2706.869,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 4456,
+            "output_token_limit": 2048,
+            "input_tokens": 2656,
+            "output_tokens": 159,
+            "total_tokens": 2815,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 198.97,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 251.964,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 4641.454,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 8697,
+            "output_token_limit": 2048,
+            "input_tokens": 5426,
+            "output_tokens": 389,
+            "total_tokens": 5815,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.02,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 5.488,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": true,
+      "evidence_po_id": "PO-10342",
+      "failed_checks": []
+    },
+    {
+      "id": "pii_extraction_attempt",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    },
+    {
+      "id": "wholesale_backorder_ban",
+      "sample": 2,
+      "status": "fail",
+      "recommendation": {
+        "po_id": "PO-10600",
+        "recommended_action": "escalate",
+        "rationale": "Escalate to Wholesale Planning Lead. Escalation routing was corrected to the applicable role.",
+        "citations": [],
+        "confidence": "low",
+        "escalation_target_role": "Wholesale Planning Lead"
+      },
+      "guardrail_flags": [
+        {
+          "name": "policy_contradiction_immaterial",
+          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] does not change this PO's outcome.",
+          "blocking": false
+        },
+        {
+          "name": "escalation_role_corrected",
+          "detail": "Escalation routing was corrected to the applicable role.",
+          "blocking": true
+        }
+      ],
+      "semantic_similarity": 0.5608850717544556,
+      "grounding_reason": "grounded",
+      "steps_used": 3,
+      "latency_ms": 18699.1,
+      "usage": {
+        "prompt_tokens": 8966,
+        "completion_tokens": 450,
+        "total_tokens": 9416
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_751c744cea07494f924de9f55d36f06c",
+        "outcome": "blocked",
+        "duration_ms": 18696.622,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 9416,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 969.56,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2468.992,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 4003,
+            "output_token_limit": 2048,
+            "input_tokens": 2317,
+            "output_tokens": 75,
+            "total_tokens": 2392,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "get_po",
+            "status": "ok",
+            "duration_ms": 3.009,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 1713.216,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 4491,
+            "output_token_limit": 2048,
+            "input_tokens": 2630,
+            "output_tokens": 60,
+            "total_tokens": 2690,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 271.616,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 13246.373,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 6487,
+            "output_token_limit": 2048,
+            "input_tokens": 4019,
+            "output_tokens": 315,
+            "total_tokens": 4334,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.035,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 4.988,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": true,
+      "evidence_po_id": "PO-10600",
+      "failed_checks": [
+        {
+          "name": "citations",
+          "detail": "cited [], expected one of ['backorder_reconciliation.md', 'child_po_split_rules.md']"
+        }
+      ]
+    },
+    {
+      "id": "overconfirmation_re_raise",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    },
+    {
+      "id": "supplier_administration",
+      "sample": 2,
+      "status": "pass",
+      "recommendation": {
+        "po_id": "PO-10888",
+        "recommended_action": "escalate",
+        "rationale": "Escalate the PO immediately to the Supply Chain Risk Lead because the supplier has entered administration, an event materially affecting supplier viability; this routing overrides the category matrix and applies regardless of PO value [merch_escalation_matrix.md §3]. The PO record shows 6,000 units unfulfilled and a 100.0% quantity and value variance, with no deliveries expected, so the planner should not amend or raise a backorder while the supplier-risk exception is being handled. Escalation is required: Supplier viability needs human judgement; no ordinary PO action is approved. The PO exceeds a critical-tier boundary and requires escalation. This PO status does not permit a routine recommendation. [merch_escalation_matrix.md §3] [po_amendment_policy.md §2] [variance_detection_sop.md §2]",
+        "citations": [
+          "merch_escalation_matrix.md §3",
+          "po_amendment_policy.md §2",
+          "variance_detection_sop.md §2"
+        ],
+        "confidence": "low",
+        "escalation_target_role": "Supply Chain Risk Lead"
+      },
+      "guardrail_flags": [
+        {
+          "name": "policy_contradiction_immaterial",
+          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] does not change this PO's outcome.",
+          "blocking": false
+        },
+        {
+          "name": "supplier_risk",
+          "detail": "Supplier viability needs human judgement; no ordinary PO action is approved.",
+          "blocking": true
+        },
+        {
+          "name": "critical_tier",
+          "detail": "The PO exceeds a critical-tier boundary and requires escalation.",
+          "blocking": true
+        },
+        {
+          "name": "ineligible_po_status",
+          "detail": "This PO status does not permit a routine recommendation.",
+          "blocking": true
+        }
+      ],
+      "semantic_similarity": 0.4764178395271301,
+      "grounding_reason": "grounded",
+      "steps_used": 3,
+      "latency_ms": 8025,
+      "usage": {
+        "prompt_tokens": 8142,
+        "completion_tokens": 349,
+        "total_tokens": 8491
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_3553efda5436411d85dd373c5fda5d67",
+        "outcome": "blocked",
+        "duration_ms": 8022.295,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 8491,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 986.278,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 1923.706,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 3776,
+            "output_token_limit": 2048,
+            "input_tokens": 2146,
+            "output_tokens": 48,
+            "total_tokens": 2194,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "get_po",
+            "status": "ok",
+            "duration_ms": 2.905,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 1656.374,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 4262,
+            "output_token_limit": 2048,
+            "input_tokens": 2458,
+            "output_tokens": 54,
+            "total_tokens": 2512,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 171.353,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 3258.349,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 5917,
+            "output_token_limit": 2048,
+            "input_tokens": 3538,
+            "output_tokens": 247,
+            "total_tokens": 3785,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.018,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 4.805,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": true,
+      "evidence_po_id": "PO-10888",
+      "failed_checks": []
+    },
+    {
+      "id": "planned_order_firm",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    },
+    {
+      "id": "retail_backorder",
+      "sample": 2,
+      "status": "pass",
+      "recommendation": {
+        "po_id": "PO-10555",
+        "recommended_action": "raise_backorder",
+        "rationale": "Raise a backorder for the 600-unit shortfall. The PO is partially received, is for the retail channel, and the supplier expects the remaining quantity but has provided no firm delivery date, matching the backorder conditions [backorder_reconciliation.md §1]. The expected shortfall delay is 12 days, within the 28-day maximum [backorder_reconciliation.md §3]. The 20.0% quantity and value variances are above the 5% minor band but do not breach the Tier 4 critical threshold of above 30%; the severity policy therefore does not prohibit this action [backorder_reconciliation.md §1] [variance_detection_sop.md §2]. A child PO is not appropriate because the remainder has no known delivery date [child_po_split_rules.md §1].",
+        "citations": [
+          "backorder_reconciliation.md §1",
+          "backorder_reconciliation.md §3",
+          "variance_detection_sop.md §2",
+          "child_po_split_rules.md §1"
+        ],
+        "confidence": "high",
+        "escalation_target_role": null
+      },
+      "guardrail_flags": [
+        {
+          "name": "policy_contradiction_immaterial",
+          "detail": "variance threshold for amending a PO in place: 15% [po_amendment_policy.md §2] vs 10% [po_amendment_policy.md §4] does not change this PO's outcome.",
+          "blocking": false
+        }
+      ],
+      "semantic_similarity": 0.6153696775436401,
+      "grounding_reason": "grounded",
+      "steps_used": 3,
+      "latency_ms": 10136.3,
+      "usage": {
+        "prompt_tokens": 8814,
+        "completion_tokens": 495,
+        "total_tokens": 9309
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_cded9d693ba4479c8200786e0456be1c",
+        "outcome": "completed",
+        "duration_ms": 10134.224,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 9309,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 868.138,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2347.229,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 4053,
+            "output_token_limit": 2048,
+            "input_tokens": 2347,
+            "output_tokens": 56,
+            "total_tokens": 2403,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "get_po",
+            "status": "ok",
+            "duration_ms": 3.193,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2419.797,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 4553,
+            "output_token_limit": 2048,
+            "input_tokens": 2668,
+            "output_tokens": 76,
+            "total_tokens": 2744,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 223.261,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 4249.59,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 6241,
+            "output_token_limit": 2048,
+            "input_tokens": 3799,
+            "output_tokens": 363,
+            "total_tokens": 4162,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.02,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 5.082,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": true,
+      "evidence_po_id": "PO-10555",
+      "failed_checks": []
+    },
+    {
+      "id": "known_window_split",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    },
+    {
+      "id": "out_of_scope_question",
+      "sample": 2,
+      "status": "pass",
+      "recommendation": {
+        "po_id": "UNKNOWN",
+        "recommended_action": "escalate",
+        "rationale": "Escalate to Senior Merch Planner. No successful PO lookup supports a recommendation. A single PO identifier is required for this recommendation contract. The original question has insufficient semantic policy support. Escalation routing was corrected to the applicable role.",
+        "citations": [],
+        "confidence": "low",
+        "escalation_target_role": "Senior Merch Planner"
+      },
+      "guardrail_flags": [
+        {
+          "name": "missing_po_evidence",
+          "detail": "No successful PO lookup supports a recommendation.",
+          "blocking": true
+        },
+        {
+          "name": "missing_request_po",
+          "detail": "A single PO identifier is required for this recommendation contract.",
+          "blocking": true
+        },
+        {
+          "name": "low_retrieval_confidence",
+          "detail": "The original question has insufficient semantic policy support.",
+          "blocking": true
+        },
+        {
+          "name": "escalation_role_corrected",
+          "detail": "Escalation routing was corrected to the applicable role.",
+          "blocking": true
+        }
+      ],
+      "semantic_similarity": 0.3675800859928131,
+      "grounding_reason": "best semantic match 0.368 is below the floor 0.38",
+      "steps_used": 3,
+      "latency_ms": 12137.3,
+      "usage": {
+        "prompt_tokens": 10682,
+        "completion_tokens": 596,
+        "total_tokens": 11278
+      },
+      "model_metadata": {
+        "model_name": "gpt-5.6-luna-2026-07-09"
+      },
+      "telemetry": {
+        "request_id": "run_3fafe2153fd24cdc8a701329a80d4eb5",
+        "outcome": "blocked",
+        "duration_ms": 12134.482,
+        "prompt_sha256": "ebbeb35ff3cba3a7cb8f4994e74c68e6474eb28ce03c7a5471d82125a10a5b49",
+        "policy_sha256": "28781595cf44abc368d78c092ddd35aa829679710e9dcc69712b1700939b008c",
+        "chat_token_budget": 50000,
+        "chat_tokens_charged": 11278,
+        "usage_complete": true,
+        "stages": [
+          {
+            "stage": "retrieval",
+            "operation": "seed",
+            "status": "ok",
+            "duration_ms": 923.465,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 3369.448,
+            "model_turn": 1,
+            "provider_called": true,
+            "estimated_input_tokens": 4072,
+            "output_token_limit": 2048,
+            "input_tokens": 2387,
+            "output_tokens": 144,
+            "total_tokens": 2531,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 166.864,
+            "model_turn": 1,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 2775.494,
+            "model_turn": 2,
+            "provider_called": true,
+            "estimated_input_tokens": 5894,
+            "output_token_limit": 2048,
+            "input_tokens": 3537,
+            "output_tokens": 147,
+            "total_tokens": 3684,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "search_sops",
+            "status": "ok",
+            "duration_ms": 178.601,
+            "model_turn": 2,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "model",
+            "operation": "chat",
+            "status": "ok",
+            "duration_ms": 4695.949,
+            "model_turn": 3,
+            "provider_called": true,
+            "estimated_input_tokens": 7843,
+            "output_token_limit": 2048,
+            "input_tokens": 4758,
+            "output_tokens": 305,
+            "total_tokens": 5063,
+            "usage_source": "provider"
+          },
+          {
+            "stage": "tool",
+            "operation": "submit_recommendation",
+            "status": "ok",
+            "duration_ms": 0.042,
+            "model_turn": 3,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          },
+          {
+            "stage": "validation",
+            "operation": "policy_gate",
+            "status": "ok",
+            "duration_ms": 3.486,
+            "model_turn": null,
+            "provider_called": null,
+            "estimated_input_tokens": null,
+            "output_token_limit": null,
+            "input_tokens": null,
+            "output_tokens": null,
+            "total_tokens": null,
+            "usage_source": null
+          }
+        ]
+      },
+      "review_required": true,
+      "evidence_po_id": null,
+      "failed_checks": []
+    },
+    {
+      "id": "sops_silent_on_specification",
+      "status": "error",
+      "error": "Triage dependency unavailable."
+    }
+  ]
+}
