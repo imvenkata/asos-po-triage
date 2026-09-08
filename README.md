@@ -9,7 +9,7 @@ role-only escalation target.
 
 Design rationale, trade-offs and limitations are in **[WRITEUP.md](WRITEUP.md)**.
 The service recommends actions only: it never modifies an order or records an
-approval. A detailed rehearsal walkthrough is in **[INTERVIEW_GUIDE.md](INTERVIEW_GUIDE.md)**.
+approval.
 
 ---
 
@@ -120,6 +120,17 @@ embeddings): **12 scenarios run twice; 24/24 passed, 210/210 assertions,
 dependencies and returned model metadata. This is a small synthetic regression
 set, not a production reliability estimate. The previous single-run report is
 preserved in `evals/reports/2026-09-08-single-run.json`.
+
+The latest run recorded 6,345–23,533 chat tokens per investigation and roughly
+7.0–17.3 seconds of request latency, with complete reported usage. These are
+sequential synthetic measurements, not evidence of a cost or speed improvement.
+
+The pre-budget baseline and initial budget run are also preserved in
+`evals/reports/`. That initial run had 12 dependency errors from reusing an async
+client across closed event loops, plus one safely blocked role-routing/citation
+quality failure. The CLI session and evaluation runner now keep one loop alive.
+The full rerun passed without changing business rules or evaluation expectations;
+the sampled quality failure could still recur.
 
 This deployment rejects an explicit `temperature`, so runs are sampled rather
 than greedy and any single number here is one observation, not a stable rate.
