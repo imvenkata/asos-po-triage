@@ -22,7 +22,7 @@ EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.]+\b")
 ADJACENT_NAME_RE = re.compile(
     r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\s*[—\-,–:]\s*(?=[\w.+-]+@)"
 )
-PHONE_RE = re.compile(r"\+?\d[\d\s().-]{8,}\d")
+PHONE_RE = re.compile(r"(?<![\w£])(?:\+\d[\d ().-]{7,}\d|0\d[\d ().-]{7,}\d)(?!\w)")
 
 EMAIL_TOKEN = "[REDACTED_EMAIL]"
 NAME_TOKEN = "[REDACTED_NAME]"
@@ -88,8 +88,21 @@ def scan_for_pii(text: str, registry: PiiRegistry) -> list[str]:
     findings: list[str] = []
     for address in EMAIL_RE.findall(text or ""):
         if address != EMAIL_TOKEN:
-            findings.append(f"email address in output: {address}")
+            findings.append("email address detected")
     for name in sorted(registry.names):
         if re.search(rf"\b{re.escape(name)}\b", text or "", re.IGNORECASE):
-            findings.append(f"personal name in output: {name}")
+            findings.append("registered personal name detected")
+    if PHONE_RE.search(text or ""):
+        findings.append("phone number detected")
     return findings
+
+
+def sanitize(value, registry: PiiRegistry):
+    """Scrub every string (including dictionary keys) in a public JSON tree."""
+    if isinstance(value, str):
+        return redact(value, registry)[0]
+    if isinstance(value, dict):
+        return {redact(str(k), registry)[0]: sanitize(v, registry) for k, v in value.items()}
+    if isinstance(value, list):
+        return [sanitize(v, registry) for v in value]
+    return value

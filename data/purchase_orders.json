@@ -65,7 +65,8 @@
     "status": "partially_received",
     "parent_po_id": null,
     "remainder_eta": null,
-    "supplier_note": "Supplier expects remaining 600 units in approx 12 days; no firm date committed."
+    "expected_shortfall_delay_days": 12,
+    "supplier_note": "Supplier expects remaining 600 units approximately 12 days after the original ETA; no firm date committed."
   },
   {
     "po_id": "PO-10600",
@@ -131,6 +132,7 @@
     "original_value_gbp": 11850.0,
     "value_gbp": 10902.0,
     "status": "planned",
+    "supplier_acknowledged": false,
     "parent_po_id": null,
     "remainder_eta": null,
     "supplier_note": null
@@ -142,15 +144,15 @@
     "category": "Footwear",
     "sku": "SKU-FW-9080",
     "ordered_qty": 4000,
-    "confirmed_qty": 2600,
+    "confirmed_qty": 3000,
     "original_eta": "2026-09-26",
     "eta": "2026-09-26",
     "original_value_gbp": 49000.0,
-    "value_gbp": 31850.0,
+    "value_gbp": 36750.0,
     "status": "partially_received",
     "parent_po_id": null,
     "remainder_eta": "2026-10-24",
-    "supplier_note": "Remaining 1400 units firm-committed for the later window."
+    "supplier_note": "Remaining 1000 units firm-committed for the later window."
   },
   {
     "po_id": "PO-10400",
@@ -218,7 +220,7 @@
     "status": "open",
     "parent_po_id": null,
     "remainder_eta": null,
-    "supplier_note": null
+    "supplier_note": "Supplier has shipped the full quantity but substituted colourway CHARCOAL for the ordered colourway BLACK. Quantity, value and ETA are all as ordered."
   },
   {
     "po_id": "PO-10120",

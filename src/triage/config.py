@@ -41,8 +41,9 @@ class Settings(BaseSettings):
     data_dir: Path = REPO_ROOT / "data"
 
     # --- retrieval --------------------------------------------------------
-    triage_retrieval_top_k: int = 6
-    triage_rrf_k: int = 60
+    triage_retrieval_top_k: int = Field(default=6, ge=1, le=30)
+    triage_rrf_k: int = Field(default=60, ge=1)
+    triage_allow_lexical_only: bool = False
     # Minimum cosine similarity for the best chunk retrieved for the user's
     # question. Applies ONLY where a real embedding model produced the vectors.
     # Calibrated on 15 in-scope + 10 out-of-scope questions against
@@ -59,8 +60,11 @@ class Settings(BaseSettings):
     triage_min_semantic_similarity: float = 0.38
 
     # --- agent ------------------------------------------------------------
-    triage_max_agent_steps: int = 6
-    triage_request_timeout_s: float = 60.0
+    triage_max_agent_steps: int = Field(default=6, ge=1, le=20)
+    triage_request_timeout_s: float = Field(default=60.0, gt=0, le=180)
+    triage_total_timeout_s: float = Field(default=120.0, gt=0, le=600)
+    triage_max_context_chunks: int = Field(default=28, ge=1, le=200)
+    triage_max_tool_calls_per_turn: int = Field(default=4, ge=1, le=8)
 
     log_level: str = Field(default="INFO")
 

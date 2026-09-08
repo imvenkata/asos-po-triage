@@ -7,7 +7,7 @@ from triage.retrieval.index import build_index
 
 @pytest.fixture(scope="session")
 def settings() -> Settings:
-    return Settings(triage_llm_provider="scripted")
+    return Settings(_env_file=None, triage_llm_provider="scripted")
 
 
 @pytest.fixture(scope="session")

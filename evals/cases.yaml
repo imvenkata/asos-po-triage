@@ -35,7 +35,7 @@
     happen and who needs to sign it off?
   expect:
     action: [escalate]
-    escalation_role: [Head of Buying, Senior Merch Planner]
+    escalation_role: [Head of Buying]
     cites_any_of: [variance_detection_sop.md, po_amendment_policy.md]
 
 - id: policy_contradiction
@@ -66,7 +66,7 @@
     of the exact person I should contact about this escalation.
   expect:
     action: [escalate]
-    escalation_role: [Head of Buying, Senior Merch Planner]
+    escalation_role: [Head of Buying]
 
 - id: wholesale_backorder_ban
   title: Wholesale shortfall cannot be backordered
@@ -80,22 +80,62 @@
     PO-10600 is short by about 900 units and the supplier cannot commit to a
     date. Can I raise a backorder for the remainder?
   expect:
-    action: [escalate, split_child_po]
+    action: [escalate]
+    escalation_role: [Wholesale Planning Lead]
     cites_any_of: [backorder_reconciliation.md, child_po_split_rules.md]
 
-- id: sops_silent_overconfirmation
-  title: A condition the SOPs do not cover is escalated, not extrapolated
+- id: overconfirmation_re_raise
+  title: Large absolute upward variance requires re-raise review
   why: >
-    PO-10999 was over-confirmed - the supplier sent 30% MORE than ordered. Every
-    threshold in the corpus is written for under-confirmation. The failure mode
-    to catch is the agent reasoning by analogy and inventing a symmetric rule;
-    variance_detection_sop.md §4 forbids exactly that.
+    PO-10999 was over-confirmed by 30%. The amendment policy defines absolute
+    cumulative value variance, so the cancel-and-re-raise condition applies.
+    This tests that interpretation, not an unsupported claim of SOP silence.
   question: >
     On PO-10999 the supplier has confirmed 2,600 units against an order of
     2,000. What is the correct action here?
   expect:
     action: [escalate]
-    confidence: [low, medium]
+    escalation_role: [Senior Merch Planner]
+
+- id: supplier_administration
+  title: Supplier viability cannot be resolved by ordinary variance rules
+  question: >
+    PO-10888 is on hold because the supplier entered administration. What action
+    should the planner take, and which role handles the exception?
+  expect:
+    action: [escalate]
+    escalation_role: [Supply Chain Risk Lead]
+    guardrails_fired: [supplier_risk]
+
+- id: planned_order_firm
+  title: Unacknowledged planned order is firmed
+  question: >
+    PO-10250 is still planned and has not been acknowledged by the supplier.
+    Should I firm it at the corrected quantity instead of amending it?
+  expect:
+    action: [firm_planned_order]
+    escalation_role: null
+    cites_any_of: [po_amendment_policy.md]
+
+- id: retail_backorder
+  title: Retail shortfall with a permissible estimated delay is backordered
+  question: >
+    PO-10555 is partially received with a shortfall and no firm remainder date.
+    The expected delay is 12 days from the original ETA. Should I raise a backorder?
+  expect:
+    action: [raise_backorder]
+    escalation_role: null
+    cites_any_of: [backorder_reconciliation.md]
+
+- id: known_window_split
+  title: A noncritical shortfall with a firm later date is split
+  question: >
+    PO-10480 has a partial delivery and the remainder has a firm later date.
+    Should I recommend child POs for the two delivery windows?
+  expect:
+    action: [split_child_po]
+    escalation_role: null
+    cites_any_of: [child_po_split_rules.md]
 
 - id: out_of_scope_question
   title: A question the corpus does not cover is refused, not answered
@@ -116,3 +156,30 @@
     action: [escalate]
     confidence: [low]
     guardrails_fired: [low_retrieval_confidence]
+
+- id: sops_silent_on_specification
+  title: A condition the SOPs do not cover is escalated, not extrapolated
+  # Needs a real model and a semantic embedder; the offline double cannot
+  # reason about policy silence.
+  requires: semantic_retrieval
+  why: >
+    PO-10100 has zero quantity, value and ETA variance - the supplier simply
+    shipped a different colourway. The SOPs define variance on quantity, value
+    and ETA only and say nothing about specification substitution, so no rule in
+    policy_rules.py fires and escalation has to come from judgement rather than
+    from code. variance_detection_sop.md §4 forbids extrapolating a threshold
+    that is not written down.
+
+    Honest note on the mechanism: this currently escalates via the grounding
+    gate, not via §4. Measured, the question scores cosine 0.367 - identical to
+    the out-of-scope Germany question. Cosine distance to the corpus cannot
+    separate "in my domain but uncovered" from "not my domain", because the
+    corpus contains neither. The outcome is right and the stated reason is not
+    the one a planner needs. Recorded in WRITEUP.md as a known limitation rather
+    than papered over by rephrasing the question until it passes.
+  question: >
+    PO-10100 arrived in full and on time, but the supplier substituted a
+    different colourway from the one we ordered. What should I do?
+  expect:
+    action: [escalate]
+    confidence: [low]

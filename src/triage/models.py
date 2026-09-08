@@ -35,9 +35,9 @@ class TriageRecommendation(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    po_id: str
+    po_id: str = Field(pattern=r"^(?:PO-\d+|UNKNOWN)$")
     recommended_action: RecommendedAction
-    rationale: str
+    rationale: str = Field(min_length=1, max_length=12000, description="Explanation with inline [document.md §N] citations matching the citations array.")
     citations: list[str] = Field(default_factory=list)
     confidence: Confidence
     escalation_target_role: EscalationRole | None = None
@@ -47,23 +47,25 @@ class TriageRecommendation(BaseModel):
 
 
 class PurchaseOrder(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", frozen=True, allow_inf_nan=False)
 
     po_id: str
     supplier: str
     channel: Literal["retail", "wholesale"]
     category: str
     sku: str
-    ordered_qty: int
-    confirmed_qty: int
+    ordered_qty: int = Field(ge=0)
+    confirmed_qty: int = Field(ge=0)
     original_eta: date
     eta: date
-    original_value_gbp: float
-    value_gbp: float
+    original_value_gbp: float = Field(ge=0)
+    value_gbp: float = Field(ge=0)
     status: str
     parent_po_id: str | None = None
     remainder_eta: date | None = None
     supplier_note: str | None = None
+    expected_shortfall_delay_days: int | None = Field(default=None, ge=0)
+    supplier_acknowledged: bool | None = None
 
 
 class Forecast(BaseModel):
@@ -137,7 +139,8 @@ class TriageResult(BaseModel):
     recommendation: TriageRecommendation
     guardrail_flags: list[GuardrailFlag] = Field(default_factory=list)
     retrieved_chunk_ids: list[str] = Field(default_factory=list)
-    # Citations naming a real corpus section that was not itself retrieved.
+    validated_chunk_ids: list[str] = Field(default_factory=list)
+    # Legacy field, always empty: unread references are no longer accepted.
     resolved_citations: list[str] = Field(default_factory=list)
     # Citations matching no section in the corpus. Invented, and dropped.
     dropped_citations: list[str] = Field(default_factory=list)
@@ -148,6 +151,9 @@ class TriageResult(BaseModel):
     steps_used: int = 0
     provider: str = "unknown"
     usage: dict[str, int] = Field(default_factory=dict)
+    model_metadata: dict[str, str] = Field(default_factory=dict)
+    evidence_po_id: str | None = None
+    review_required: bool = True
 
     @property
     def blocked(self) -> bool:

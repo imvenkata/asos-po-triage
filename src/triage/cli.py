@@ -18,6 +18,7 @@ from .logging_setup import setup_logging
 from .models import TriageResult
 
 console = Console(stderr=False)
+diagnostics = Console(stderr=True)
 
 ACTION_STYLE = {
     "amend": "green",
@@ -78,7 +79,7 @@ def render(result: TriageResult, show_trace: bool = False) -> None:
 
 def _agent() -> TriageAgent:
     settings = get_settings()
-    console.print(
+    diagnostics.print(
         f"[dim]provider={settings.triage_llm_provider}  corpus={settings.corpus_dir.name}/[/]"
     )
     return build_agent(settings)
@@ -110,7 +111,7 @@ def cmd_repl(args: argparse.Namespace) -> int:
         try:
             render(agent.triage(question), show_trace=args.trace)
         except LLMError as exc:
-            console.print(f"[red]LLM error:[/] {exc}")
+            diagnostics.print(f"[red]LLM error:[/] {exc}")
 
 
 def cmd_audit(_: argparse.Namespace) -> int:
@@ -217,7 +218,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return args.func(args)
     except LLMError as exc:
-        console.print(f"[red]LLM error:[/] {exc}")
+        diagnostics.print(f"[red]LLM error:[/] {exc}")
         return 2
     except FileNotFoundError as exc:
         console.print(f"[red]Missing file:[/] {exc}")

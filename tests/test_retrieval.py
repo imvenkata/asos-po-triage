@@ -39,8 +39,10 @@ def test_conflict_closure_fires_even_when_neither_half_ranks(index):
     assert {"po_amendment_policy.md §2", "po_amendment_policy.md §4"} <= fused_only
 
 
-def test_closure_is_a_no_op_for_documents_without_conflicts(index):
-    hits = index.search("how long can a backorder stay open")
-    assert all(h.chunk.doc != "po_amendment_policy.md" for h in hits) or True
-    # Nothing from a conflict-free document is ever force-added.
-    assert not {h.chunk.chunk_id for h in hits} & {"child_po_split_rules.md §9"}
+def test_closure_is_a_no_op_for_documents_without_conflicts(index, settings):
+    from triage.retrieval.index import SopIndex
+    chunks = [c for c in index.chunks if c.doc == "backorder_reconciliation.md"]
+    clean = SopIndex(chunks, index.registry, settings)
+    hits = clean.search("maximum backorder delay", top_k=1)
+    assert len(hits) == 1
+    assert hits[0].chunk.chunk_id == "backorder_reconciliation.md §3"

@@ -49,6 +49,8 @@ def build_chat_model(settings: Settings | None = None) -> BaseChatModel:
             api_version=settings.azure_openai_api_version,
             azure_deployment=settings.azure_openai_chat_deployment,
             timeout=settings.triage_request_timeout_s,
+            max_retries=1,
+            temperature=None,
         )
 
     from langchain_openai import ChatOpenAI
@@ -59,6 +61,8 @@ def build_chat_model(settings: Settings | None = None) -> BaseChatModel:
         api_key=settings.openai_api_key,
         model=settings.openai_chat_model,
         timeout=settings.triage_request_timeout_s,
+        max_retries=1,
+        temperature=None,
     )
 
 

@@ -10,6 +10,7 @@ percentage) without weakening the model's actual job.
 from __future__ import annotations
 
 from typing import Any
+from decimal import Decimal
 
 from ..data_access import PoRepository
 from ..models import PurchaseOrder
@@ -17,17 +18,18 @@ from ..models import PurchaseOrder
 
 def compute_variance(po: PurchaseOrder) -> dict[str, Any]:
     qty_var = (
-        (po.ordered_qty - po.confirmed_qty) / po.ordered_qty * 100 if po.ordered_qty else 0.0
+        float(Decimal(po.ordered_qty - po.confirmed_qty) / Decimal(po.ordered_qty) * 100) if po.ordered_qty else None
     )
     val_var = (
-        (po.original_value_gbp - po.value_gbp) / po.original_value_gbp * 100
+        float((Decimal(str(po.original_value_gbp)) - Decimal(str(po.value_gbp))) / Decimal(str(po.original_value_gbp)) * 100)
         if po.original_value_gbp
-        else 0.0
+        else None
     )
     eta_slip = (po.eta - po.original_eta).days
     return {
-        "qty_variance_pct": round(qty_var, 2),
-        "value_variance_pct": round(val_var, 2),
+        "qty_variance_pct": qty_var,
+        "value_variance_pct": val_var,
+        "baseline_valid": qty_var is not None and val_var is not None,
         "eta_slip_days": eta_slip,
         "unfulfilled_qty": po.ordered_qty - po.confirmed_qty,
         "supplier_over_confirmed": po.confirmed_qty > po.ordered_qty,
@@ -45,7 +47,6 @@ def get_po(repo: PoRepository, po_id: str) -> dict[str, Any]:
         return {
             "po_id": po_id,
             "error": f"No purchase order found with id '{po_id}'.",
-            "known_po_ids_sample": repo.po_ids[:5],
         }
     payload = po.model_dump(mode="json")
     payload["computed_variance"] = compute_variance(po)

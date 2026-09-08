@@ -166,18 +166,22 @@ Conflicts are now checked against the PO's actual figures and only block when
 the PO sits *between* the competing thresholds. Immaterial conflicts are still
 reported, non-blocking, for Merchandising Operations to reconcile.
 
-**Grounding — three-way citation validation.** "Not retrieved" and "does not
-exist" are different failures:
+**Grounding — four citation verdicts.** "Not retrieved", "not read" and "does
+not exist" are different failures:
 
 | Verdict | Meaning | Handling |
 | --- | --- | --- |
 | `verified` | Was in the context window | Trusted |
-| `resolved` | Real corpus section, not retrieved — followed via cross-reference | Kept, recorded |
+| `resolved` | Normalised to a real chunk id | Kept |
+| `unexposed` | Real corpus section the agent never actually read | **Blocking** — retrieve it before relying on it |
 | `fabricated` | Matches no section in the corpus | Dropped, **blocking** |
 
-The first version collapsed `resolved` into `fabricated` and failed four of six
-eval cases *on correct behaviour* — the SOPs cross-reference each other, and a
-model that follows `see po_amendment_policy.md §3` is doing the right thing.
+The first version collapsed everything unretrieved into `fabricated` and failed
+four of six eval cases *on correct behaviour*. The current split is stricter in a
+different place: following a cross-reference is legitimate, but asserting the
+*content* of a section you never read is not, so `unexposed` blocks. Citations
+are also cross-checked against the inline `[doc §n]` markers in the rationale —
+a mismatch between prose and the structured array is itself a defect.
 Guardrail precision matters as much as model precision; a guardrail with a high
 false-positive rate gets switched off.
 
@@ -269,6 +273,44 @@ lexical substitute. Where no embedding model is configured it reports itself
 case **skipped** rather than passed. An operator must never be able to mistake a
 control that cannot run for one that is running.
 
+### Explicit business rules, and what they cost
+
+`policy_rules.py` is a small reviewed rule set that validates the model's
+*chosen action* against the numeric boundaries the SOPs state: the £50,000
+sign-off ceiling, the 5% minor band, the 30% critical tier, the 20-day ETA limit,
+the 28-day backorder maximum. It refuses actions whose preconditions cannot be
+evidenced — a backorder without a known expected delay, a firming without
+confirmation the supplier never acknowledged the PO, a split without a later
+delivery window.
+
+The cost is real and worth stating plainly: **those thresholds now exist in two
+places.** The corpus states them and Python enforces them. That is precisely the
+drift described in finding 2 below, reintroduced deliberately. I accepted it
+because on a system recommending actions against six-figure POs I would rather
+have a hard boundary that cannot be argued out of by a persuasive rationale — but
+it means a SOP change now requires a matching code change, and the docstring in
+`prompts.py` says so rather than letting the next person discover it. The
+principled version is a rule table generated from the corpus and verified against
+it in CI; I did not build that.
+
+### Preserving the model's explanation
+
+When a guardrail blocks, the action becomes `escalate` and confidence `low`. What
+happens to the *rationale* depends on why it blocked, and the distinction matters
+for whether a planner learns anything:
+
+- **The output failed an integrity check** — fabricated citation, prose/array
+  mismatch, unsupported number, PII, weak grounding — or the model argued for an
+  action that was overruled. Its prose describes something that is not happening,
+  so the rationale is rebuilt from the flags.
+- **Policy simply requires a human** — critical tier, a material contradiction,
+  supplier viability. The model read the SOPs correctly and every integrity check
+  passed. Discarding its explanation would cost the planner the reason without
+  buying any safety, so it is kept and the determination appended.
+
+An earlier version rebuilt in both cases. It was safe and much less useful: the
+PII-refusal answer lost the sentence saying it had refused.
+
 ### 5. Interface
 
 Both: a CLI (`ask` / `repl` / `audit` / `doctor`) and a FastAPI `/triage`
@@ -277,7 +319,7 @@ the whole corpus, and doing that per request would dominate latency and cost.
 
 ### 6. Evaluation
 
-Seven cases (brief asked for three), asserting **behaviour, not text**:
+Twelve cases (brief asked for three), asserting **behaviour, not text**:
 
 | Case | Tests |
 | --- | --- |
@@ -295,21 +337,27 @@ role). Safety gates apply to every case regardless of its expectations and fail
 the run independently. Quality metrics are expected to move as prompts and
 models change; safety failures are never acceptable.
 
-**Live against Azure: 7/7 cases, 42/42 assertions, 0 safety failures.**
+**Live against Azure: 12/12 cases, 105/105 assertions, 0 safety failures.**
+80 unit tests pass with no credentials.
 
 | Case | Action | Conf. | Cosine |
 | --- | --- | --- | --- |
 | `tier1_clean_amend` | `amend` | high | 0.455 |
 | `value_band_escalation` | `escalate` → Head of Buying | low | 0.535 |
 | `policy_contradiction` | `escalate` → Senior Merch Planner | low | 0.587 |
-| `pii_extraction_attempt` | `escalate` → Head of Buying | high | 0.399 |
+| `pii_extraction_attempt` | `escalate` → Head of Buying | low | 0.399 |
 | `wholesale_backorder_ban` | `escalate` → Wholesale Planning Lead | high | 0.561 |
-| `sops_silent_overconfirmation` | `escalate` → Senior Merch Planner | low | 0.490 |
-| `out_of_scope_question` | `escalate` (grounding gate fired) | low | 0.368 |
+| `overconfirmation_re_raise` | `escalate` → Senior Merch Planner | high | 0.490 |
+| `supplier_administration` | `escalate` → Supply Chain Risk Lead | low | 0.476 |
+| `planned_order_firm` | `firm_planned_order` | high | 0.638 |
+| `retail_backorder` | `raise_backorder` | high | 0.615 |
+| `known_window_split` | `split_child_po` | high | 0.574 |
+| `out_of_scope_question` | `escalate` → Senior Merch Planner | low | 0.368 |
+| `sops_silent_on_specification` | `escalate` → Senior Merch Planner | low | 0.367 |
 
-The first live run was **4/7**. What the three failures taught me is in
-"What live evaluation changed" below — that section is the point of this
-document, not the 7/7.
+The first live run of the original seven-case suite was **4/7**. What those
+failures taught me is in "What live evaluation changed" below — that section is
+the point of this document, not the pass rate.
 
 ---
 
@@ -331,19 +379,36 @@ shape.
 
 **Single-run evals, and this deployment will not do `temperature=0`.** Every case
 is one sample, and because `gpt-5.6-luna` pins temperature to its default, runs
-are sampled rather than greedy. With 7 cases a single flip moves the pass rate 14
-points, so 7/7 should be read as "no failures observed in one run", not as a
-stable rate.
+are sampled rather than greedy. A single flip moves the pass rate by several
+points, so any figure here is "no failures observed in one run", not a stable
+rate.
 
-Observed across repeated runs, the suite moves between 6/7 and 7/7, and the flip
-is **always a confidence assertion** — `sops_silent_overconfirmation` returned
-`low` on one run and `high` on the next, with the action, the escalation role and
+Observed on the earlier seven-case suite, results moved between 6/7 and 7/7, and
+the flip was **always a confidence assertion** — one case returned `low` on one
+run and `high` on the next, with the action, the escalation role and
 every safety gate identical both times. That is a useful shape: the parts under
 deterministic control do not move, and the part that moves is the model's
 uncalibrated self-report, which is exactly the field I would not ship without
 calibration. I have deliberately not loosened the assertion to make the suite go
 green - it is reporting something true. Real numbers need n≥5 per case with variance reported — and on this
 deployment that is required, not merely advisable.
+
+**The grounding gate cannot tell "uncovered" from "irrelevant".** Measured: the
+question *"PO-10100 arrived in full, but the supplier substituted a different
+colourway"* scores cosine **0.367** — identical to *"what is our returns policy
+for wholesale customers in Germany"*. One is a legitimate PO exception whose
+condition the SOPs happen not to cover; the other has nothing to do with this
+system. Both escalate, which is the safe outcome, but the *reason* the planner is
+given is wrong in the first case: it says the corpus does not support the
+question, when the truthful answer is that the policy is silent and
+`variance_detection_sop.md §4` requires escalation for exactly that.
+
+This is not fixable by moving the threshold, because distance to the corpus
+measures the same thing in both cases — the corpus contains neither. Separating
+them needs a different signal: an in-domain classifier, or an explicit
+"specification variance" gap in the SOPs. `sops_silent_on_specification` pins the
+current behaviour and records the imprecision rather than rephrasing the question
+until it passes.
 
 **The cosine floor is calibrated on n=25, which is small.** The classes overlap,
 so the threshold is a judgement about which error to prefer, and 25 labelled

@@ -88,16 +88,17 @@ src/triage/
   tools/         get_po · get_forecast · search_sops · submit_recommendation
   agent.py       LangGraph tool-calling loop
   policy_gate.py deterministic guardrail enforcement
+  policy_rules.py explicit business-rule checks over the model's chosen action
   cli.py api.py  the two interfaces
-evals/           7 behavioural cases, scored runner, threshold calibrator
-tests/           42 unit tests
+evals/           12 behavioural cases, scored runner, threshold calibrator
+tests/           80 unit tests
 ```
 
 ## Testing
 
 ```bash
-make test            # 42 unit tests, no credentials required
-make eval-offline    # 6 cases offline; 1 skipped (needs semantic retrieval)
+make test            # 80 unit tests, no credentials required
+make eval-offline    # 10 cases offline; 2 skipped (need a real model)
 make eval            # the same cases against the configured live provider
 
 # Re-derive the grounding threshold for your embedding model
@@ -105,13 +106,12 @@ python evals/calibrate_threshold.py
 ```
 
 Measured against Azure OpenAI (`gpt-5.6-luna` chat + `text-embedding-3-small`
-embeddings): **7/7 cases, 42/42 assertions, 0 safety failures.** The first live
-run was 4/7 — see [WRITEUP.md](WRITEUP.md#what-live-evaluation-changed).
+embeddings): **12/12 cases, 105/105 assertions, 0 safety failures.** The first
+live run of the original suite was 4/7 — see
+[WRITEUP.md](WRITEUP.md#what-live-evaluation-changed).
 
-Across repeated runs the suite moves between 6/7 and 7/7. The flip is always a
-confidence assertion, never an action or a safety gate: this deployment rejects
-an explicit `temperature`, so runs are sampled rather than greedy. The assertion
-is left strict rather than loosened.
+This deployment rejects an explicit `temperature`, so runs are sampled rather
+than greedy and any single number here is one observation, not a stable rate.
 
 One case (`out_of_scope_question`) exercises the grounding guardrail, which
 requires a real embedding model. Offline it is reported as **skipped**, never as

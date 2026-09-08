@@ -48,6 +48,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
+import json
 
 from ..models import RetrievedChunk
 
@@ -58,11 +60,12 @@ _NORMALISE = re.compile(r"\b(?:section|sec\.?|s\.)\s*(\d+)\b", re.IGNORECASE)
 class CitationVerdict:
     verified: list[str] = field(default_factory=list)
     resolved: list[str] = field(default_factory=list)
+    unexposed: list[str] = field(default_factory=list)
     fabricated: list[str] = field(default_factory=list)
 
     @property
     def kept(self) -> list[str]:
-        return self.verified + self.resolved
+        return self.verified
 
 
 def _normalise(raw: str) -> str:
@@ -82,11 +85,46 @@ def validate_citations(
             if cite not in verdict.verified:
                 verdict.verified.append(cite)
         elif cite in corpus:
-            if cite not in verdict.resolved:
-                verdict.resolved.append(cite)
+            if cite not in verdict.unexposed:
+                verdict.unexposed.append(cite)
         elif cite not in verdict.fabricated:
             verdict.fabricated.append(cite)
     return verdict
+
+
+def inline_citations(rationale: str) -> list[str]:
+    """Include malformed bracketed file references so they cannot evade checks."""
+    return [_normalise(s) for s in re.findall(r"\[([^\]\n]*\.md[^\]\n]*)\]", rationale, re.I)]
+
+
+def normalize_citations(citations: list[str]) -> set[str]:
+    return {_normalise(c) for c in citations}
+
+
+def _numbers(text: str) -> set[Decimal]:
+    text = re.sub(r"\[[^\]]*\.md[^\]]*\]|\b(?:PO|SKU)-[\w-]+|§\s*\d+", "", text, flags=re.I)
+    values = set()
+    for token in re.findall(r"(?<!\w)[+-]?\d[\d,]*(?:\.\d+)?", text):
+        try:
+            values.add(Decimal(token.replace(",", "")))
+        except InvalidOperation:
+            pass
+    return values
+
+
+def unsupported_numbers(rationale: str, cited_text: str, facts: dict | None) -> bool:
+    """Literal-number provenance, NOT entailment or general fact checking.
+
+    Compare absolute and displayed (two-decimal) values because the calculation
+    retains precision for threshold decisions while the prose may round it.
+    """
+    supplied = _numbers(cited_text)
+    if facts:
+        # Free-text supplier notes are untrusted, not numerical authority.
+        structured = {k: v for k, v in facts.items() if k not in ("supplier_note", "supplier")}
+        for n in _numbers(json.dumps(structured, default=str)):
+            supplied.update((n, abs(n), n.quantize(Decimal("0.01")), abs(n).quantize(Decimal("0.01"))))
+    return not _numbers(rationale).issubset(supplied)
 
 
 @dataclass

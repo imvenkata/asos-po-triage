@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from .agent import TriageAgent, build_agent
 from .config import get_settings
-from .llm.base import LLMError
+from .llm.base import LLMError, TriageTimeout
 from .logging_setup import get_logger, setup_logging
 from .models import TriageResult
 
@@ -43,13 +43,15 @@ def health() -> dict[str, str]:
 
 
 @app.post("/triage", response_model=TriageResult)
-def triage(request: TriageRequest) -> TriageResult:
+async def triage(request: TriageRequest) -> TriageResult:
     agent = _state.get("agent")
     if agent is None:
         raise HTTPException(status_code=503, detail="Agent not ready")
     try:
-        return agent.triage(request.question)
+        return await agent.atriage(request.question)
+    except TriageTimeout as exc:
+        raise HTTPException(status_code=504, detail="Triage request deadline exceeded") from exc
     except LLMError as exc:
         # 502: the upstream model failed. Never substitute a fabricated answer.
-        log.error("LLM failure: %s", exc)
-        raise HTTPException(status_code=502, detail=f"Upstream LLM error: {exc}") from exc
+        log.error("Triage dependency failed (%s)", type(exc).__name__)
+        raise HTTPException(status_code=502, detail="Triage dependency unavailable") from exc

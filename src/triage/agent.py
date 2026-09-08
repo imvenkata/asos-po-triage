@@ -1,269 +1,227 @@
-"""The triage agent: a LangGraph tool-calling loop wrapped in a policy gate.
-
-Division of responsibility, which is the core design decision in this codebase:
-
-  the model      reads retrieved policy, decides, cites, explains
-  Python         computes every number, detects policy conflicts, validates every
-                 citation, strips PII, and enforces the invariants that must hold
-                 regardless of what the model said
-
-The model proposes; the policy gate disposes. A guardrail implemented only as a
-prompt instruction is a request, not a control - so each guardrail has a
-deterministic enforcement step in `policy_gate.py` that runs after the model has
-spoken.
-
-The graph itself is deliberately small:
-
-    START -> agent -> (submitted?) -> END
-               ^         |
-               |      (tools)
-               +---------+
-
-Retrieval is seeded on the user's question before the graph runs, so every
-recommendation has a grounding floor, and `search_sops` is also exposed as a tool
-so the agent can search again once it discovers what kind of PO it is dealing
-with.
-"""
+"""Bounded, single-agent investigation followed by deterministic validation."""
 from __future__ import annotations
 
+import asyncio
+import json
 import re
 from typing import Annotated, Any, Sequence
 
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from langchain_core.tools import StructuredTool
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import ToolNode
 from pydantic import ValidationError
 from typing_extensions import TypedDict
 
 from .config import Settings, get_settings
 from .data_access import PoRepository, get_repository
-from .guardrails.contradiction import detect_threshold_conflicts
-from .llm.base import LLMError
+from .llm.base import LLMError, TriageTimeout
 from .llm.chat import build_chat_model, describe
-from .logging_setup import get_logger
-from .models import ToolInvocation, TriageRecommendation, TriageResult
+from .models import GuardrailFlag, ToolInvocation, TriageRecommendation, TriageResult
 from .policy_gate import apply_policy_gate
-from .prompts import SYSTEM_PROMPT, format_conflict_block, format_context_block
+from .prompts import SYSTEM_PROMPT, format_context_block
 from .retrieval.index import SopIndex, build_index
-from .tools.po_tools import compute_variance
 from .tools.registry import TERMINAL_TOOL, RetrievalRecorder, build_tools
 
-log = get_logger("agent")
 
-
-class TriageState(TypedDict):
-    """State threaded through the graph.
-
-    `add_messages` is the reducer: each node returns only the messages it wants
-    appended and the reducer merges them into the running transcript.
-    """
-
+class TriageState(TypedDict, total=False):
     messages: Annotated[Sequence[BaseMessage], add_messages]
+    steps: int
+    repairs: int
+    done: bool
+    raw: dict[str, Any] | None
+    flags: list[GuardrailFlag]
 
 
-def build_graph(model: BaseChatModel, tools: list[StructuredTool]):
-    """Compile the agent graph. Three nodes, one conditional edge."""
+def build_graph(model: BaseChatModel, tools, settings: Settings | None = None):
+    settings = settings or get_settings()
     bound = model.bind_tools(tools)
+    by_name = {tool.name: tool for tool in tools}
 
-    def agent_node(state: TriageState) -> dict[str, list[BaseMessage]]:
-        return {"messages": [bound.invoke(state["messages"])]}
+    async def agent_node(state):
+        message = await bound.ainvoke(state["messages"])
+        return {"messages": [message], "steps": state.get("steps", 0) + 1}
 
-    def route(state: TriageState) -> str:
-        """Where to go after the model speaks.
+    async def dispatch(state):
+        message = state["messages"][-1]
+        calls = message.tool_calls if isinstance(message, AIMessage) else []
+        terminal = [c for c in calls if c["name"] == TERMINAL_TOOL]
+        if not calls:
+            return {"messages": [HumanMessage(content="Call submit_recommendation using the schema, after collecting evidence.")]}
+        if len(calls) > settings.triage_max_tool_calls_per_turn or (terminal and len(calls) != 1):
+            return {
+                "messages": [ToolMessage(content="Rejected: submit alone; tool batch not executed.",
+                                         tool_call_id=c["id"], name=c["name"], status="error") for c in calls],
+                "flags": state.get("flags", []) + [GuardrailFlag(
+                    name="invalid_tool_batch", detail="A terminal or oversized tool batch was rejected.", blocking=True)],
+                "done": True,
+            }
+        if terminal:
+            call = terminal[0]
+            try:
+                rec = TriageRecommendation.model_validate(call["args"])
+            except ValidationError as exc:
+                # Locations and types only. Never echo invalid input values.
+                errors = [{"field": str(e["loc"][0]) if e["loc"] else "object",
+                           "type": e["type"]} for e in exc.errors(include_input=False)]
+                return {
+                    "messages": [ToolMessage(
+                        content=json.dumps({"error": "Invalid recommendation schema", "fields": errors}),
+                        name=TERMINAL_TOOL, tool_call_id=call["id"], status="error")],
+                    "repairs": state.get("repairs", 0) + 1,
+                    "done": state.get("repairs", 0) >= 1,
+                }
+            return {
+                "messages": [ToolMessage(content="accepted", name=TERMINAL_TOOL,
+                                         tool_call_id=call["id"], status="success")],
+                "raw": rec.model_dump(), "done": True,
+            }
+        results = []
+        for call in calls:
+            tool = by_name.get(call["name"])
+            try:
+                if tool is None:
+                    raise ValueError("Unknown tool")
+                content = await tool.ainvoke(call["args"])
+                failed = isinstance(content, str) and isinstance(json.loads(content), dict) and "error" in json.loads(content)
+            except LLMError:
+                raise
+            except Exception as exc:
+                content = json.dumps({"error": "Tool execution failed", "category": type(exc).__name__})
+                failed = True
+            results.append(ToolMessage(content=content, tool_call_id=call["id"], name=call["name"],
+                                       status="error" if failed else "success"))
+        return {"messages": results}
 
-        - called submit_recommendation -> done
-        - called any other tool        -> execute it, loop back
-        - answered in prose            -> push it back onto the contract
-        """
-        last = state["messages"][-1]
-        if not isinstance(last, AIMessage) or not last.tool_calls:
-            return "nudge"
-        if any(call["name"] == TERMINAL_TOOL for call in last.tool_calls):
-            return "submitted"
-        return "tools"
-
-    def nudge_node(state: TriageState) -> dict[str, list[BaseMessage]]:
-        log.warning("model answered in prose; nudging back to the schema")
-        return {
-            "messages": [
-                HumanMessage(
-                    content="Respond by calling submit_recommendation with the "
-                    "structured object. Do not answer in prose."
-                )
-            ]
-        }
+    def route(state):
+        return END if state.get("done") or state["steps"] >= settings.triage_max_agent_steps else "agent"
 
     graph = StateGraph(TriageState)
     graph.add_node("agent", agent_node)
-    graph.add_node("tools", ToolNode(tools))
-    graph.add_node("nudge", nudge_node)
-
+    graph.add_node("dispatch", dispatch)
     graph.add_edge(START, "agent")
-    graph.add_conditional_edges(
-        "agent", route, {"tools": "tools", "nudge": "nudge", "submitted": END}
-    )
-    graph.add_edge("tools", "agent")
-    graph.add_edge("nudge", "agent")
+    graph.add_edge("agent", "dispatch")
+    graph.add_conditional_edges("dispatch", route)
     return graph.compile()
 
 
 class TriageAgent:
-    def __init__(
-        self,
-        model: BaseChatModel,
-        index: SopIndex,
-        repo: PoRepository,
-        settings: Settings | None = None,
-    ) -> None:
-        self._model = model
-        self._index = index
-        self._repo = repo
+    def __init__(self, model: BaseChatModel, index: SopIndex, repo: PoRepository,
+                 settings: Settings | None = None) -> None:
+        self._model, self._index, self._repo = model, index, repo
         self._settings = settings or get_settings()
         self.name = describe(model, self._settings)
 
     @property
     def semantic_retrieval_available(self) -> bool:
-        """Whether the grounding guardrail can actually run in this configuration."""
         return self._index.semantic_scores_meaningful
 
     @property
     def pii_registry(self):
-        """Exposed so the eval harness asserts leakage against the same registry
-        the guardrail uses, rather than a second hand-written list."""
         return self._index.registry
 
     def triage(self, question: str) -> TriageResult:
-        settings = self._settings
-        recorder = RetrievalRecorder()
-        tools = build_tools(
-            self._repo, self._index, recorder, settings.triage_retrieval_top_k
-        )
-        graph = build_graph(self._model, tools)
+        """Synchronous CLI entry point. Async callers should await atriage."""
+        return asyncio.run(self.atriage(question))
 
-        # Resolve the PO up front so policy conflicts can be judged against this
-        # PO's actual figures rather than treated as universally blocking.
-        observations = self._observations_for(question)
-
-        seed = self._index.search(question)
-        recorder.record(seed)
-
-        context = format_context_block(seed)
-        conflicts = detect_threshold_conflicts([h.chunk for h in seed], observations)
-        if conflicts:
-            context += "\n\n" + format_conflict_block([c.describe() for c in conflicts])
-
-        initial: TriageState = {
-            "messages": [
-                SystemMessage(content=SYSTEM_PROMPT),
-                SystemMessage(content=context),
-                HumanMessage(content=question),
-            ]
-        }
-
-        # recursion_limit bounds the loop. Each agent->tools->agent round trip
-        # costs two steps, hence the doubling.
+    async def atriage(self, question: str) -> TriageResult:
         try:
-            final = graph.invoke(
-                initial,
-                config={"recursion_limit": settings.triage_max_agent_steps * 2 + 4},
+            return await asyncio.wait_for(self._investigate(question),
+                                          timeout=self._settings.triage_total_timeout_s)
+        except TimeoutError as exc:
+            raise TriageTimeout("Triage request deadline exceeded.") from exc
+        except LLMError:
+            raise
+        except Exception as exc:
+            # Provider exception text can contain prompts, tokens or contact data.
+            raise LLMError(f"Triage dependency failed ({type(exc).__name__}).") from exc
+
+    async def _investigate(self, question: str) -> TriageResult:
+        settings = self._settings
+        po_ids = list(dict.fromkeys(re.findall(r"\bPO-\d+\b", question, re.IGNORECASE)))
+        po_ids = list(dict.fromkeys(p.upper() for p in po_ids))
+        requested = po_ids[0] if len(po_ids) == 1 else "UNKNOWN"
+        recorder = RetrievalRecorder(settings.triage_max_context_chunks,
+                                     requested if requested != "UNKNOWN" else None)
+        seed = await self._index.asearch(question)
+        recorder.record(seed)
+        flags = []
+        raw, trace, steps, usage = None, [], 0, {}
+        model_metadata = {}
+        if len(po_ids) > 1:
+            flags.append(GuardrailFlag(name="multiple_po_ids",
+                                      detail="Ask about one PO at a time.", blocking=True))
+        else:
+            graph = build_graph(self._model, build_tools(
+                self._repo, self._index, recorder, settings.triage_retrieval_top_k), settings)
+            final = await graph.ainvoke(
+                {"messages": [SystemMessage(content=SYSTEM_PROMPT),
+                              HumanMessage(content=question),
+                              HumanMessage(content=format_context_block(seed))],
+                 "steps": 0, "repairs": 0, "raw": None, "done": False, "flags": []},
+                config={"recursion_limit": settings.triage_max_agent_steps * 2 + 2},
             )
-        except Exception as exc:  # noqa: BLE001 - surfaced, never swallowed
-            raise LLMError(f"{self.name} graph execution failed: {exc}") from exc
-
-        raw, tool_log, steps, usage = self._harvest(final["messages"])
-
+            raw = final.get("raw")
+            for msg in final["messages"]:
+                if isinstance(msg, AIMessage):
+                    model_metadata.update({k: str(v) for k, v in msg.response_metadata.items()
+                                           if k in {"model_name", "model", "system_fingerprint"} and v is not None})
+            _, trace, steps, usage = self._harvest(final["messages"])
+            flags.extend(final.get("flags", []))
+            if not final.get("done") and steps >= settings.triage_max_agent_steps:
+                flags.append(GuardrailFlag(name="agent_step_budget",
+                                          detail="The model turn budget was exhausted.", blocking=True))
         return apply_policy_gate(
-            question=question,
-            raw=raw,
-            index=self._index,
-            settings=settings,
-            exposed_chunk_ids=recorder.exposed_chunk_ids,
-            retrieved=recorder.retrieved,
-            seed=seed,
-            observations=observations,
-            tool_log=tool_log,
-            steps=steps,
-            usage=usage,
-            provider=self.name,
-            po_id=_resolve_po_id(question, tool_log),
+            question=question, raw=raw, index=self._index, settings=settings,
+            exposed_chunk_ids=recorder.exposed_chunk_ids, retrieved=recorder.retrieved,
+            seed=seed, observations=None, tool_log=trace, steps=steps, usage=usage,
+            provider=self.name, po_id=requested, po=recorder.po,
+            po_payload=recorder.po_payload, forecasts=recorder.forecasts, initial_flags=flags,
+            model_metadata=model_metadata,
         )
-
-    def _observations_for(self, question: str) -> dict[str, float] | None:
-        po_id = _po_id_from_question(question)
-        po = self._repo.get_po(po_id) if po_id else None
-        if po is None:
-            return None
-        return {
-            k: v for k, v in compute_variance(po).items() if isinstance(v, (int, float))
-        }
 
     @staticmethod
-    def _harvest(
-        messages: Sequence[BaseMessage],
-    ) -> tuple[dict[str, Any] | None, list[ToolInvocation], int, dict[str, int]]:
-        """Recover the submission and the trace from the finished transcript."""
-        raw: dict[str, Any] | None = None
-        tool_log: list[ToolInvocation] = []
-        usage: dict[str, int] = {}
-        step = 0
-
+    def _harvest(messages: Sequence[BaseMessage]):
+        raw, trace, usage, step = None, [], {}, 0
+        # Unique provider call IDs bind completed results to their requests.
+        outcomes = {m.tool_call_id: m for m in messages if isinstance(m, ToolMessage)}
         for msg in messages:
             if not isinstance(msg, AIMessage):
                 continue
             step += 1
-            meta = msg.usage_metadata or {}
-            if meta:
-                usage["prompt_tokens"] = usage.get("prompt_tokens", 0) + meta.get("input_tokens", 0)
-                usage["completion_tokens"] = usage.get("completion_tokens", 0) + meta.get("output_tokens", 0)
-                usage["total_tokens"] = usage.get("total_tokens", 0) + meta.get("total_tokens", 0)
-
+            for source, target in (("input_tokens", "prompt_tokens"), ("output_tokens", "completion_tokens"),
+                                   ("total_tokens", "total_tokens")):
+                usage[target] = usage.get(target, 0) + (msg.usage_metadata or {}).get(source, 0)
             for call in msg.tool_calls or []:
-                args = call.get("args") or {}
-                summary = "executed"
+                outcome = outcomes.get(call["id"])
+                summary = "not_executed" if outcome is None else (
+                    "failed" if outcome.status == "error" else "executed")
                 if call["name"] == TERMINAL_TOOL:
                     try:
-                        TriageRecommendation(**args)
-                        raw = args
-                        summary = "accepted"
-                    except ValidationError as exc:
-                        summary = f"rejected: {exc.error_count()} field error(s)"
-                        log.warning("submission rejected by schema: %s", summary)
-                tool_log.append(
-                    ToolInvocation(
-                        step=step,
-                        name=call["name"],
-                        arguments=args,
-                        result_summary=summary,
-                    )
-                )
-        return raw, tool_log, step, usage
+                        rec = TriageRecommendation.model_validate(call.get("args") or {})
+                        if outcome is not None and outcome.status == "success" and outcome.content == "accepted":
+                            raw, summary = rec.model_dump(), "accepted"
+                    except ValidationError:
+                        summary = "rejected_schema"
+                trace.append(ToolInvocation(step=step, name=call["name"],
+                                            arguments=call.get("args") or {}, result_summary=summary))
+        return raw, trace, step, usage
 
 
-def _po_id_from_question(question: str) -> str | None:
-    match = re.search(r"PO-\d+", question or "", re.IGNORECASE)
-    return match.group(0).upper() if match else None
-
-
-def _resolve_po_id(question: str, tool_log: list[ToolInvocation]) -> str:
-    for call in tool_log:
-        if call.name == "get_po" and call.arguments.get("po_id"):
-            return str(call.arguments["po_id"]).upper()
-    return _po_id_from_question(question) or "UNKNOWN"
-
-
-def build_agent(
-    settings: Settings | None = None, model: BaseChatModel | None = None
-) -> TriageAgent:
+def build_agent(settings: Settings | None = None, model: BaseChatModel | None = None) -> TriageAgent:
     settings = settings or get_settings()
     from .llm.embeddings import build_embedder
 
-    index = build_index(settings, build_embedder(settings))
-    return TriageAgent(
-        model or build_chat_model(settings), index, get_repository(settings), settings
-    )
+    try:
+        embedder = build_embedder(settings)
+    except LLMError:
+        if not settings.triage_allow_lexical_only:
+            raise
+        embedder = None
+    index = build_index(settings, embedder)
+    if settings.triage_llm_provider != "scripted" and not index.semantic_scores_meaningful and not settings.triage_allow_lexical_only:
+        raise LLMError("A semantic index is required. Lexical-only mode must be explicitly enabled.")
+    return TriageAgent(model or build_chat_model(settings), index, get_repository(settings), settings)
 
 
 __all__ = ["TriageAgent", "build_agent", "build_graph", "LLMError"]

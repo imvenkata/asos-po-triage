@@ -9,10 +9,10 @@ def test_retrieved_citation_is_verified():
     assert v.verified == ["po_amendment_policy.md §2"] and not v.fabricated
 
 
-def test_real_but_unretrieved_citation_is_resolved_not_dropped():
+def test_real_but_unretrieved_citation_is_not_evidence():
     v = validate_citations(["po_amendment_policy.md §3"], EXPOSED, CORPUS)
-    assert v.resolved == ["po_amendment_policy.md §3"]
-    assert v.kept == ["po_amendment_policy.md §3"] and not v.fabricated
+    assert v.unexposed == ["po_amendment_policy.md §3"]
+    assert not v.kept and not v.fabricated and not v.resolved
 
 
 def test_invented_section_is_fabricated_and_dropped():

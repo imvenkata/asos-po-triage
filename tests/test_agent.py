@@ -1,5 +1,5 @@
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from triage.agent import TriageAgent, build_agent
 from triage.data_access import get_repository
@@ -75,6 +75,7 @@ def test_harvest_extracts_the_submission_and_trace():
         AIMessage(content="", tool_calls=[
             {"name": "get_po", "args": {"po_id": "PO-10342"}, "id": "1"}
         ]),
+        ToolMessage(content='{}', name="get_po", tool_call_id="1", status="success"),
         AIMessage(content="", tool_calls=[{
             "name": TERMINAL_TOOL,
             "args": {
@@ -84,6 +85,7 @@ def test_harvest_extracts_the_submission_and_trace():
             },
             "id": "2",
         }]),
+        ToolMessage(content="accepted", name=TERMINAL_TOOL, tool_call_id="2", status="success"),
     ]
     raw, tool_log, steps, _ = TriageAgent._harvest(messages)
     assert raw is not None and raw["recommended_action"] == "escalate"

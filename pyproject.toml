@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "httpx>=0.28", "ruff>=0.16"]
 
 [project.scripts]
 triage = "triage.cli:main"

@@ -24,6 +24,7 @@ class Embedder(Protocol):
     provides_semantic_embeddings: bool
 
     def embed(self, texts: list[str]) -> list[list[float]]: ...
+    async def aembed(self, texts: list[str]) -> list[list[float]]: ...
 
 
 class LocalEmbedder:
@@ -35,6 +36,9 @@ class LocalEmbedder:
     def embed(self, texts: list[str]) -> list[list[float]]:
         return embed_texts(texts)
 
+    async def aembed(self, texts: list[str]) -> list[list[float]]:
+        return self.embed(texts)
+
 
 class AzureEmbedder:
     provides_semantic_embeddings = True
@@ -44,14 +48,16 @@ class AzureEmbedder:
 
         if not settings.azure_openai_embedding_deployment:
             raise LLMError(
-                "AZURE_OPENAI_EMBEDDING_DEPLOYMENT not set. Retrieval will run "
-                "lexical-only and the grounding guardrail will be inactive."
+                "AZURE_OPENAI_EMBEDDING_DEPLOYMENT not set. Configure it, or explicitly "
+                "enable TRIAGE_ALLOW_LEXICAL_ONLY for a degraded demonstration."
             )
         self._client = AzureOpenAIEmbeddings(
             azure_endpoint=settings.azure_openai_endpoint,
             api_key=settings.azure_openai_api_key,
             api_version=settings.azure_openai_api_version,
             azure_deployment=settings.azure_openai_embedding_deployment,
+            request_timeout=settings.triage_request_timeout_s,
+            max_retries=1,
         )
         self.name = f"azure:{settings.azure_openai_embedding_deployment}"
 
@@ -59,7 +65,13 @@ class AzureEmbedder:
         try:
             return self._client.embed_documents(texts)
         except Exception as exc:
-            raise LLMError(f"{self.name} embedding call failed: {exc}") from exc
+            raise LLMError("Embedding provider request failed.") from exc
+
+    async def aembed(self, texts: list[str]) -> list[list[float]]:
+        try:
+            return await self._client.aembed_documents(texts)
+        except Exception as exc:
+            raise LLMError("Embedding provider request failed.") from exc
 
 
 class OpenAIEmbedder:
@@ -71,7 +83,8 @@ class OpenAIEmbedder:
         if not settings.openai_api_key:
             raise LLMError("OPENAI_API_KEY not set.")
         self._client = OpenAIEmbeddings(
-            api_key=settings.openai_api_key, model=settings.openai_embedding_model
+            api_key=settings.openai_api_key, model=settings.openai_embedding_model,
+            request_timeout=settings.triage_request_timeout_s, max_retries=1,
         )
         self.name = f"openai:{settings.openai_embedding_model}"
 
@@ -79,7 +92,13 @@ class OpenAIEmbedder:
         try:
             return self._client.embed_documents(texts)
         except Exception as exc:
-            raise LLMError(f"{self.name} embedding call failed: {exc}") from exc
+            raise LLMError("Embedding provider request failed.") from exc
+
+    async def aembed(self, texts: list[str]) -> list[list[float]]:
+        try:
+            return await self._client.aembed_documents(texts)
+        except Exception as exc:
+            raise LLMError("Embedding provider request failed.") from exc
 
 
 def build_embedder(settings: Settings | None = None) -> Embedder:

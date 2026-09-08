@@ -44,6 +44,8 @@ class SopIndex:
                 self._dense = DenseIndex(embedder.embed(self._texts))
                 log.info("Dense index built over %d chunks (%s)", len(chunks), embedder.name)
             except LLMError as exc:
+                if not settings.triage_allow_lexical_only:
+                    raise LLMError("Semantic index initialization failed; startup refused.") from exc
                 # Degrade to lexical-only, but say so at WARNING and record it, so
                 # a half-working retriever never looks like a healthy one.
                 log.warning("Dense index unavailable, running lexical-only: %s", exc)
@@ -101,6 +103,19 @@ class SopIndex:
             except LLMError as exc:
                 log.warning("Query embedding failed, this query is lexical-only: %s", exc)
 
+        return self._rank(lexical, dense, top_k)
+
+    async def asearch(self, query: str, top_k: int | None = None) -> list[RetrievedChunk]:
+        top_k = top_k or self._settings.triage_retrieval_top_k
+        pool = max(top_k * 3, 12)
+        lexical = self._bm25.search(query, pool)
+        dense = []
+        if self._dense is not None and self._embedder is not None:
+            vector = (await self._embedder.aembed([query]))[0]
+            dense = self._dense.search(vector, pool)
+        return self._rank(lexical, dense, top_k)
+
+    def _rank(self, lexical, dense, top_k: int) -> list[RetrievedChunk]:
         fused = reciprocal_rank_fusion(
             lexical, dense, k=self._settings.triage_rrf_k, top_k=top_k
         )
@@ -142,6 +157,10 @@ class SopIndex:
     @property
     def chunk_ids(self) -> set[str]:
         return {c.chunk_id for c in self.chunks}
+
+    def get_chunk(self, chunk_id: str) -> Chunk | None:
+        position = self._by_id.get(chunk_id)
+        return self.chunks[position] if position is not None else None
 
 
 def build_index(

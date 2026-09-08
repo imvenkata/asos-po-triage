@@ -112,11 +112,12 @@ class ScriptedChatModel(BaseChatModel):
         note = (po.get("supplier_note") or "").lower()
 
         def out(action, rationale, confidence, role=None, want=()):
+            chosen = [c for c in cites if any(w in c for w in want)][:3] or cites[:2]
             return {
                 "po_id": po["po_id"],
                 "recommended_action": action,
-                "rationale": rationale,
-                "citations": [c for c in cites if any(w in c for w in want)][:3] or cites[:2],
+                "rationale": rationale + " " + " ".join(f"[{c}]" for c in chosen),
+                "citations": chosen,
                 "confidence": confidence,
                 "escalation_target_role": role,
             }
@@ -136,11 +137,11 @@ class ScriptedChatModel(BaseChatModel):
 
         if over:
             return out(_ESCALATE,
-                       "The supplier confirmed more units than were ordered. The SOPs "
-                       "define variance only for under-confirmation.",
+                       "The supplier confirmed more than ordered; the absolute value "
+                       "variance requires cancel-and-re-raise review.",
                        "medium", "Senior Merch Planner", ("variance_detection_sop",))
 
-        if self._contradiction_in_context(messages):
+        if po.get("material_policy_conflicts"):
             return out(_ESCALATE,
                        "The retrieved policy sections specify conflicting variance "
                        "thresholds for this decision.",
@@ -179,9 +180,13 @@ class ScriptedChatModel(BaseChatModel):
     @staticmethod
     def _available_citations(messages: Sequence[BaseMessage]) -> list[str]:
         found: list[str] = []
+        for result in _tool_results(messages, "search_sops"):
+            for hit in result.get("results", []):
+                if hit["citation"] not in found:
+                    found.append(hit["citation"])
         for msg in messages:
-            if msg.type in ("tool", "system") and isinstance(msg.content, str):
-                for cid in re.findall(r"[a-z_]+\.md §\d+", msg.content):
+            if msg.type == "human" and isinstance(msg.content, str) and msg.content.startswith("REFERENCE DATA"):
+                for cid in re.findall(r"^--- ([a-z_]+\.md §\d+)", msg.content, re.MULTILINE):
                     if cid not in found:
                         found.append(cid)
         return found

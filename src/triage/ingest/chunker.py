@@ -8,7 +8,7 @@ verifiable by set membership.
 
 Corpus sections here are short enough to index whole (largest is well under a
 typical 512-token target), so there is no sub-splitting step; the guard below
-fails loudly rather than silently truncating if that stops being true.
+    rejects oversized sections rather than silently truncating them.
 """
 from __future__ import annotations
 
@@ -48,14 +48,11 @@ def chunk_document(path: Path, registry: PiiRegistry | None = None) -> list[Chun
     chunks: list[Chunk] = []
     for section, heading, body in spans:
         if len(body) > MAX_CHUNK_CHARS:
-            log.warning(
-                "%s §%s is %d chars, above the %d guard - it should be sub-split "
-                "before indexing rather than embedded whole.",
-                doc, section, len(body), MAX_CHUNK_CHARS,
-            )
+            raise ValueError(f"{doc} §{section} exceeds the chunk size limit; split it before indexing.")
         was_redacted = False
-        if registry and not registry.is_empty:
+        if registry is not None:
             body, was_redacted = redact(body, registry)
+            heading, _ = redact(heading, registry)
         chunks.append(
             Chunk(
                 chunk_id=f"{doc} §{section}",

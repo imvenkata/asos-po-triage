@@ -43,4 +43,4 @@ def test_search_records_every_chunk_the_model_was_shown(settings, index):
 def test_submit_schema_mirrors_the_output_contract(settings, index):
     """If these drift, structured output stops matching the published contract."""
     submit = next(t for t in _tools(settings, index) if t.name == TERMINAL_TOOL)
-    assert set(submit.args_schema.model_fields) == set(TriageRecommendation.model_fields)
+    assert submit.args_schema.model_json_schema() == TriageRecommendation.model_json_schema()
